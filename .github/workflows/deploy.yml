@@ -45,8 +45,9 @@ jobs:
           curl -L -o resume_embeddings.pkl "https://drive.google.com/uc?export=download&id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
 
       - name: Run prompt-based API tests
-        working-directory: backend
-        run: pytest tests/
+        working-directory: ./backend
+        run: |
+          pytest tests
 
       - name: Trigger Render Deployment
         run: curl -X POST $RENDER_DEPLOY_HOOK
