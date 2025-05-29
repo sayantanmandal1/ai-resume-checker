@@ -1,9 +1,9 @@
-# frontend.Dockerfile
+# frontend/Dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
 
-COPY frontend/ /app/
+COPY . /app/
 
 RUN npm install
 RUN npm run build
