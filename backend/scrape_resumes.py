@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 import bs4
 from selenium import webdriver
 import pandas as pd

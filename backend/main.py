@@ -72,8 +72,9 @@ def score_resume(resume: str, job_description: str) -> int:
     content = response.choices[0].message.content.strip()
     try:
         return min(max(int(content.split()[0]), 0), 100)
-    except:
+    except (IndexError, ValueError):
         return 0
+
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return np.dot(a, b) / (norm(a) * norm(b))
