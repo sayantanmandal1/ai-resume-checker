@@ -53,7 +53,7 @@ function App() {
       formData.append("job_description", jobDescription);
       formData.append("resume_pdf", resumeFile);
 
-      const response = await fetch("https://ai-resume-checker-7xd9.onrender.com/evaluate-resume/", {
+      const response = await fetch("https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resume/", {
         method: "POST",
         body: formData,
       });
