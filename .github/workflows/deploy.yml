@@ -1,0 +1,46 @@
+name: CI/CD - AI Resume Evaluator
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Run Python linting with Ruff
+        working-directory: backend
+        run: ruff . --output-format=github
+
+      - name: Download resume_embeddings.pkl
+        working-directory: backend
+        run: |
+          curl -L -o resume_embeddings.pkl "https://drive.google.com/uc?export=download&id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
+
+      - name: Run prompt-based API tests
+        working-directory: backend
+        run: pytest tests/
+
+      - name: Trigger Render Deployment
+        run: curl -X POST $RENDER_DEPLOY_HOOK
