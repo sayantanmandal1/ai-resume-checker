@@ -1,0 +1,53 @@
+# Ignore node_modules and build in frontend
+/frontend/node_modules/
+/frontend/build/
+
+# Ignore env files in frontend
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# Ignore logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore IDE/editor config files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Ignore backend virtual environments and cache (if using Python)
+# Adjust according to your backend tech stack
+
+/backend/__pycache__/
+/backend/*.pyc
+/backend/env/
+/backend/venv/
+/backend/.env
+
+# Ignore backend logs (adjust path if needed)
+/backend/logs/
+/backend/*.log
+
+# Optional lock files
+/frontend/package-lock.json
+/frontend/yarn.lock
+/backend/package-lock.json
+/backend/yarn.lock
+
+/backend/resume_embeddings.pkl
+/backend/Resume.csv
