@@ -46,7 +46,9 @@ jobs:
 
       - name: Run prompt-based API tests
         working-directory: backend
-        run: pytest tests/
+        run: |
+          export PYTHONPATH="${PYTHONPATH}:./backend"
+          pytest backend/tests
 
       - name: Trigger Render Deployment
         run: curl -X POST $RENDER_DEPLOY_HOOK
