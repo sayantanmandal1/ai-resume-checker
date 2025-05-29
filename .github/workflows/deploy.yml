@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Python linting with Ruff
         working-directory: backend
-        run: ruff . --output-format=github
+        run: ruff check . --output-format=github
 
       - name: Download resume_embeddings.pkl
         working-directory: backend
