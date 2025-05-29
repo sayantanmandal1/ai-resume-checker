@@ -4,8 +4,7 @@
 
 **AI Resume Checker** is a full-stack intelligent system that evaluates candidate resumes against job descriptions and returns a score from 0 to 100, along with a pass/fail verdict. It leverages OpenAI's GPT-4 API for semantic analysis and scoring.
 
-The system is deployed using Docker containers on [Render](https://ai-resume-checker-1-tsrs.onrender.com), and all CI/CD operations—linting, testing, deployment—are automated via GitHub Actions.
-Live deployed at [Vercel](https://ai-resume-checker-nine.vercel.app/)
+The system is deployed using Docker containers on [Render](https://ai-resume-checker-1-tsrs.onrender.com), and all CI/CD operations—linting, testing, deployment—are automated via GitHub Actions. Live deployed at [Vercel](https://ai-resume-checker-nine.vercel.app/)
 ---
 
 ## 🛠 Tech Stack
