@@ -241,7 +241,7 @@ App.js
 - **Authentication**: Add user authentication if needed
 
 ## 🚀 Deployment
-
+ Download the csv file from blob:https://github.com/e26e51cd-bd84-458a-88b3-f6f8c6bdaa92
 ### **Frontend Deployment**
 
 #### **Netlify**
@@ -360,10 +360,10 @@ copies or substantial portions of the Software.
 
 ## 📞 Support
 
-- **Documentation**: [Project Wiki](https://github.com/yourusername/cv-evaluator/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/cv-evaluator/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/cv-evaluator/discussions)
-- **Email**: support@cv-evaluator.com
+- **Documentation**: [Project Wiki](https://github.com/sayantanmandal1/cv-evaluator/wiki)
+- **Issues**: [GitHub Issues](https://github.com/sayantanmandal1/cv-evaluator/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/sayantanmandal1/cv-evaluator/discussions)
+- **Email**: msayantan05@gmail.com
 
 ## 🗺️ Roadmap
 
@@ -387,6 +387,6 @@ copies or substantial portions of the Software.
 
 ---
 
-**Made with ❤️ by the CV Evaluator Team**
+**Made with ❤️ by Sayantan**
 
 *Last updated: May 2025*
