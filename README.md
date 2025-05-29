@@ -242,7 +242,7 @@ App.js
 
 ## 🚀 Deployment
  Download the csv file from blob:https://github.com/e26e51cd-bd84-458a-88b3-f6f8c6bdaa92
-### **Frontend Deployment**
+### **Frontend  Deployment**
 
 #### **Netlify**
 ```bash
