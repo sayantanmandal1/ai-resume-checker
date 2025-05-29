@@ -1,4 +1,5 @@
 import pickle
+import gdown
 import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
@@ -22,8 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load embeddings and metadata from pickle file
-with open("resume_embeddings.pkl", "rb") as f:
+url = "https://drive.google.com/uc?id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
+output = "resume_embeddings.pkl"
+gdown.download(url, output, quiet=False)
+
+with open(output, "rb") as f:
     data = pickle.load(f)
 
 resume_embeddings = data["embeddings"]  # numpy array of shape (N, embedding_dim)
