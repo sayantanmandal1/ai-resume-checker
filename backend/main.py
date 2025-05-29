@@ -2,7 +2,6 @@ import pickle
 import gdown
 import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 import openai

@@ -2,10 +2,9 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import openai
-import faiss
 import numpy as np
 import pickle
-
+from openai import OpenAI
 # Load environment variables from .env file in current directory
 load_dotenv()
 
@@ -21,7 +20,6 @@ def preprocess_text(text):
 
 df['clean_resume'] = df['Resume_str'].apply(preprocess_text)
 
-from openai import OpenAI
 
 client = OpenAI()
 
