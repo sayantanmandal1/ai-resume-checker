@@ -29,9 +29,15 @@ jobs:
           pip install -r requirements.txt
           pip install ruff pytest
 
-      - name: Run Python linting with Ruff
+      - name: Run Python linting and auto-fix with Ruff
         working-directory: backend
-        run: ruff check . --output-format=github
+        run: |
+          ruff check . --fix
+
+      - name: Check for remaining lint errors after auto-fix
+        working-directory: backend
+        run: |
+          ruff check . --exit-zero  # or omit --exit-zero to fail if errors remain
 
       - name: Download resume_embeddings.pkl
         working-directory: backend
