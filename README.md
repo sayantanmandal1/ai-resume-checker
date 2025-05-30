@@ -154,7 +154,7 @@ CMD ["serve", "-s", "build", "-l", "3000"]
 
 ## 🚀 Live Demo
 
-- [AI Resume Checker – Render](https://ai-resume-checker-1-tsrs.onrender.com)
+- [AI Resume Checker – Vercel](https://ai-resume-checker-nine.vercel.app/)
 
 ---
 
