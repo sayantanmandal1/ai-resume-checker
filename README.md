@@ -39,13 +39,12 @@ ai-resume-checker/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   └── test_main.py
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── Dockerfile
 ├── frontend/
 │   ├── public/
 │   ├── src/
 │   └── package.json
-├── frontend.Dockerfile
-├── backend.Dockerfile
 ├── docker-compose.yml
 ├── .github/
 │   └── workflows/
