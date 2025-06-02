@@ -26,7 +26,7 @@ def test_resume_evaluation_endpoint():
 
     with open("sample_resume.pdf", "rb") as pdf:
         response = client.post(
-            "/evaluate-resume/",
+            "/evaluate-resumes/",
             files={"resume_pdf": ("sample_resume.pdf", pdf, "application/pdf")},
             data={"job_description": "Software Developer"},
         )
