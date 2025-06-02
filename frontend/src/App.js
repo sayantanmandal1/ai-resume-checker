@@ -69,11 +69,10 @@ function App() {
       const formData = new FormData();
       formData.append("job_description", jobDescription);
       
-      resumeFiles.forEach((file, index) => {
-        formData.append(`resume_pdf_${index}`, file);
+      // Append all files with the same field name "resume_pdfs" (plural)
+      resumeFiles.forEach((file) => {
+        formData.append("resume_pdfs", file);
       });
-      
-      formData.append("resume_count", resumeFiles.length.toString());
 
       const response = await fetch("https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resumes/", {
         method: "POST",
@@ -86,11 +85,11 @@ function App() {
 
       const data = await response.json();
       
-      // Handle both single result and array of results
-      if (Array.isArray(data)) {
-        setResults(data);
+      // API returns data.reports as array of results
+      if (data.reports && Array.isArray(data.reports)) {
+        setResults(data.reports);
       } else {
-        setResults([data]);
+        throw new Error("Invalid response format from server");
       }
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -106,7 +105,7 @@ function App() {
   };
 
   const getStatusIcon = (status) => {
-    if (status?.toLowerCase().includes("excellent") || status?.toLowerCase().includes("good")) {
+    if (status?.toLowerCase().includes("passed")) {
       return <CheckCircle className="score-icon" />;
     }
     return <AlertCircle className="score-icon" />;
@@ -682,11 +681,11 @@ function App() {
                       Resume Analysis
                       <span className="resume-index">#{index + 1}</span>
                     </div>
-                    {resumeFiles[index] && (
-                      <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                        {resumeFiles[index].name}
-                      </div>
-                    )}
+                  {result.filename && (
+                    <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                      {result.filename}
+                    </div>
+                  )}
                   </div>
 
                   <div className="score-section">
