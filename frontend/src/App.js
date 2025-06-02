@@ -1,16 +1,29 @@
 import React, { useState } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, TrendingUp, Users } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, TrendingUp, Users, X, File } from "lucide-react";
 
 function App() {
   const [jobDescription, setJobDescription] = useState("");
-  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeFiles, setResumeFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
 
   const handleFileChange = (e) => {
-    setResumeFile(e.target.files[0]);
+    const files = Array.from(e.target.files);
+    const pdfFiles = files.filter(file => file.type === "application/pdf");
+    
+    if (pdfFiles.length !== files.length) {
+      setError("Only PDF files are allowed. Some files were filtered out.");
+    } else {
+      setError(null);
+    }
+    
+    setResumeFiles(prev => [...prev, ...pdfFiles]);
+  };
+
+  const removeFile = (indexToRemove) => {
+    setResumeFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const handleDrag = (e) => {
@@ -28,32 +41,41 @@ function App() {
     e.stopPropagation();
     setDragActive(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf") {
-        setResumeFile(file);
+    if (e.dataTransfer.files) {
+      const files = Array.from(e.dataTransfer.files);
+      const pdfFiles = files.filter(file => file.type === "application/pdf");
+      
+      if (pdfFiles.length !== files.length) {
+        setError("Only PDF files are allowed. Some files were filtered out.");
       } else {
-        setError("Please upload a PDF file only.");
+        setError(null);
       }
+      
+      setResumeFiles(prev => [...prev, ...pdfFiles]);
     }
   };
 
   const handleSubmit = async () => {
     setError(null);
-    if (!jobDescription || !resumeFile) {
-      setError("Please provide both job description and resume file.");
+    if (!jobDescription || resumeFiles.length === 0) {
+      setError("Please provide both job description and at least one resume file.");
       return;
     }
 
     setLoading(true);
-    setResult(null);
+    setResults([]);
 
     try {
       const formData = new FormData();
       formData.append("job_description", jobDescription);
-      formData.append("resume_pdf", resumeFile);
+      
+      resumeFiles.forEach((file, index) => {
+        formData.append(`resume_pdf_${index}`, file);
+      });
+      
+      formData.append("resume_count", resumeFiles.length.toString());
 
-      const response = await fetch("https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resume/", {
+      const response = await fetch("https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resumes/", {
         method: "POST",
         body: formData,
       });
@@ -63,7 +85,13 @@ function App() {
       }
 
       const data = await response.json();
-      setResult(data);
+      
+      // Handle both single result and array of results
+      if (Array.isArray(data)) {
+        setResults(data);
+      } else {
+        setResults([data]);
+      }
     } catch (err) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -115,7 +143,7 @@ function App() {
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           padding: 3rem;
           width: 100%;
-          max-width: 800px;
+          max-width: 1000px;
           animation: slideUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -221,7 +249,7 @@ function App() {
           transform: scale(1.02);
         }
 
-        .file-upload.has-file {
+        .file-upload.has-files {
           border-color: #10b981;
           background: rgba(16, 185, 129, 0.05);
         }
@@ -250,10 +278,46 @@ function App() {
           font-size: 1rem;
         }
 
+        .file-list {
+          margin-top: 1rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          justify-content: center;
+        }
+
+        .file-chip {
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 20px;
+          padding: 0.5rem 1rem;
+          font-size: 0.875rem;
+          color: #059669;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          max-width: 200px;
+        }
+
         .file-name {
-          color: #10b981;
-          font-weight: 600;
-          margin-top: 0.5rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .remove-file {
+          cursor: pointer;
+          color: #dc2626;
+          padding: 0.1rem;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.2s;
+        }
+
+        .remove-file:hover {
+          background: rgba(220, 38, 38, 0.1);
         }
 
         .file-input {
@@ -319,6 +383,7 @@ function App() {
           align-items: center;
           gap: 0.5rem;
           animation: shake 0.5s ease-in-out;
+          margin-top: 1rem;
         }
 
         @keyframes shake {
@@ -327,12 +392,33 @@ function App() {
           75% { transform: translateX(5px); }
         }
 
+        .results-container {
+          margin-top: 2rem;
+        }
+
+        .results-header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+
+        .results-title {
+          font-size: 1.8rem;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 0.5rem;
+        }
+
+        .results-subtitle {
+          color: #6b7280;
+          font-size: 1rem;
+        }
+
         .result-card {
           background: rgba(255, 255, 255, 0.8);
           backdrop-filter: blur(20px);
           border-radius: 16px;
           padding: 2rem;
-          margin-top: 2rem;
+          margin-bottom: 2rem;
           border: 1px solid rgba(255, 255, 255, 0.2);
           animation: slideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
@@ -351,19 +437,33 @@ function App() {
         .result-header {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          justify-content: space-between;
           margin-bottom: 2rem;
+          flex-wrap: wrap;
+          gap: 1rem;
         }
 
         .result-title {
-          font-size: 1.5rem;
+          font-size: 1.3rem;
           font-weight: 700;
           color: #1f2937;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .resume-index {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 0.3rem 0.8rem;
+          border-radius: 20px;
+          font-size: 0.875rem;
+          font-weight: 600;
         }
 
         .score-section {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 1.5rem;
           margin-bottom: 2rem;
         }
@@ -400,6 +500,7 @@ function App() {
         .score-label {
           color: #6b7280;
           font-weight: 500;
+          font-size: 0.9rem;
         }
 
         .similar-resumes {
@@ -407,7 +508,7 @@ function App() {
         }
 
         .similar-title {
-          font-size: 1.25rem;
+          font-size: 1.1rem;
           font-weight: 600;
           color: #1f2937;
           margin-bottom: 1rem;
@@ -460,15 +561,20 @@ function App() {
           .score-section {
             grid-template-columns: 1fr;
           }
+
+          .result-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
         }
       `}</style>
 
       <div className="app-container">
         <div className="main-card">
           <div className="header">
-            <h1 className="title">CV Evaluator</h1>
+            <h1 className="title">Multi-Resume CV Evaluator</h1>
             <p className="subtitle">
-              Get intelligent insights and scoring for resume-job matching
+              Upload multiple resumes and get intelligent insights for resume-job matching
             </p>
           </div>
 
@@ -491,10 +597,10 @@ function App() {
             <div className="input-group">
               <label className="label">
                 <Upload style={{ width: '1.2rem', height: '1.2rem', display: 'inline', marginRight: '0.5rem' }} />
-                Resume Upload
+                Resume Upload ({resumeFiles.length} file{resumeFiles.length !== 1 ? 's' : ''} selected)
               </label>
               <div
-                className={`file-upload ${dragActive ? 'drag-active' : ''} ${resumeFile ? 'has-file' : ''}`}
+                className={`file-upload ${dragActive ? 'drag-active' : ''} ${resumeFiles.length > 0 ? 'has-files' : ''}`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -503,26 +609,34 @@ function App() {
                 <input
                   type="file"
                   accept="application/pdf"
+                  multiple
                   onChange={handleFileChange}
                   className="file-input"
-                  required
                 />
                 <div className="upload-content">
                   <Upload className="upload-icon" />
                   <div className="upload-text">
-                    {resumeFile ? (
-                      <div className="file-name">
-                        ✓ {resumeFile.name}
-                      </div>
-                    ) : (
-                      <>
-                        <div>Drop your PDF here or click to browse</div>
-                        <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                          PDF files only, max 10MB
-                        </div>
-                      </>
-                    )}
+                    <div>Drop your PDF files here or click to browse</div>
+                    <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                      Multiple PDF files supported, max 10MB each
+                    </div>
                   </div>
+                  {resumeFiles.length > 0 && (
+                    <div className="file-list">
+                      {resumeFiles.map((file, index) => (
+                        <div key={index} className="file-chip">
+                          <File style={{ width: '1rem', height: '1rem' }} />
+                          <span className="file-name">{file.name}</span>
+                          <div className="remove-file" onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile(index);
+                          }}>
+                            <X style={{ width: '1rem', height: '1rem' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -532,12 +646,12 @@ function App() {
                 {loading ? (
                   <>
                     <Loader className="loading-spinner" style={{ width: '1.2rem', height: '1.2rem' }} />
-                    Analyzing Resume...
+                    Analyzing {resumeFiles.length} Resume{resumeFiles.length !== 1 ? 's' : ''}...
                   </>
                 ) : (
                   <>
                     <TrendingUp style={{ width: '1.2rem', height: '1.2rem' }} />
-                    Evaluate Resume
+                    Evaluate {resumeFiles.length} Resume{resumeFiles.length !== 1 ? 's' : ''}
                   </>
                 )}
               </div>
@@ -551,55 +665,74 @@ function App() {
             </div>
           )}
 
-          {result && (
-            <div className="result-card">
-              <div className="result-header">
-                <Star style={{ width: '1.5rem', height: '1.5rem', color: '#f59e0b' }} />
-                <h3 className="result-title">Evaluation Results</h3>
+          {results.length > 0 && (
+            <div className="results-container">
+              <div className="results-header">
+                <h2 className="results-title">Evaluation Results</h2>
+                <p className="results-subtitle">
+                  Analysis complete for {results.length} resume{results.length !== 1 ? 's' : ''}
+                </p>
               </div>
 
-              <div className="score-section">
-                <div className="score-card">
-                  <div className="score-value" style={{ color: getScoreColor(result.score_out_of_100) }}>
-                    {result.score_out_of_100}
-                    <span style={{ fontSize: '1rem', color: '#6b7280' }}>/100</span>
-                  </div>
-                  <div className="score-label">Match Score</div>
-                </div>
-
-                <div className="score-card">
-                  <div className="score-value" style={{ color: getScoreColor(result.score_out_of_100) }}>
-                    {getStatusIcon(result.status)}
-                  </div>
-                  <div className="score-label">{result.status}</div>
-                </div>
-
-                <div className="score-card">
-                  <div className="score-value" style={{ color: '#667eea', fontSize: '1.2rem', fontWeight: '600' }}>
-                    {result.suggested_job_role}
-                  </div>
-                  <div className="score-label">Suggested Role</div>
-                </div>
-              </div>
-
-              {result.matched_resumes && result.matched_resumes.length > 0 && (
-                <div className="similar-resumes">
-                  <h4 className="similar-title">
-                    <Users style={{ width: '1.2rem', height: '1.2rem' }} />
-                    Similar Resumes ({result.matched_resumes.length})
-                  </h4>
-                  <div className="resume-list">
-                    {result.matched_resumes.map((res, idx) => (
-                      <div key={idx} className="resume-item">
-                        <div className="resume-text">
-                          {res.slice(0, 300)}
-                          {res.length > 300 && '...'}
-                        </div>
+              {results.map((result, index) => (
+                <div key={index} className="result-card">
+                  <div className="result-header">
+                    <div className="result-title">
+                      <Star style={{ width: '1.5rem', height: '1.5rem', color: '#f59e0b' }} />
+                      Resume Analysis
+                      <span className="resume-index">#{index + 1}</span>
+                    </div>
+                    {resumeFiles[index] && (
+                      <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                        {resumeFiles[index].name}
                       </div>
-                    ))}
+                    )}
                   </div>
+
+                  <div className="score-section">
+                    <div className="score-card">
+                      <div className="score-value" style={{ color: getScoreColor(result.score_out_of_100) }}>
+                        {result.score_out_of_100}
+                        <span style={{ fontSize: '1rem', color: '#6b7280' }}>/100</span>
+                      </div>
+                      <div className="score-label">Match Score</div>
+                    </div>
+
+                    <div className="score-card">
+                      <div className="score-value" style={{ color: getScoreColor(result.score_out_of_100) }}>
+                        {getStatusIcon(result.status)}
+                      </div>
+                      <div className="score-label">{result.status}</div>
+                    </div>
+
+                    <div className="score-card">
+                      <div className="score-value" style={{ color: '#667eea', fontSize: '1.2rem', fontWeight: '600' }}>
+                        {result.suggested_job_role}
+                      </div>
+                      <div className="score-label">Suggested Role</div>
+                    </div>
+                  </div>
+
+                  {result.matched_resumes && result.matched_resumes.length > 0 && (
+                    <div className="similar-resumes">
+                      <h4 className="similar-title">
+                        <Users style={{ width: '1.2rem', height: '1.2rem' }} />
+                        Similar Resumes ({result.matched_resumes.length})
+                      </h4>
+                      <div className="resume-list">
+                        {result.matched_resumes.map((res, idx) => (
+                          <div key={idx} className="resume-item">
+                            <div className="resume-text">
+                              {res.slice(0, 300)}
+                              {res.length > 300 && '...'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ import openai
 from fastapi.middleware.cors import CORSMiddleware
 from numpy.linalg import norm
 import fitz  # PyMuPDF for PDF text extraction
+from typing import List
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -75,7 +76,6 @@ def score_resume(resume: str, job_description: str) -> int:
     except (IndexError, ValueError):
         return 0
 
-
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return np.dot(a, b) / (norm(a) * norm(b))
 
@@ -84,32 +84,36 @@ def search_similar_resumes(job_embedding: np.ndarray, top_k=5):
     top_indices = np.argsort(scores)[::-1][:top_k]
     return [resume_texts[i] for i in top_indices]
 
-@app.post("/evaluate-resume/")
-async def evaluate_resume(
+@app.post("/evaluate-resumes/")
+async def evaluate_resumes(
     job_description: str = Form(...),
-    resume_pdf: UploadFile = File(...)
+    resume_pdfs: List[UploadFile] = File(...)
 ):
-    try:
-        pdf_bytes = await resume_pdf.read()
-        resume_text = extract_text_from_pdf(pdf_bytes)
+    reports = []
+    for resume_pdf in resume_pdfs:
+        try:
+            pdf_bytes = await resume_pdf.read()
+            resume_text = extract_text_from_pdf(pdf_bytes)
+            job_embedding = get_embedding(job_description)
+            top_resumes = search_similar_resumes(job_embedding)
+            job_role = recommend_job_type(resume_text)
+            score = score_resume(resume_text, job_description)
 
-        job_embedding = get_embedding(job_description)
+            reports.append({
+                "filename": resume_pdf.filename,
+                "matched_resumes": top_resumes,
+                "suggested_job_role": job_role,
+                "score_out_of_100": score,
+                "status": "Passed" if score >= 60 else "Needs Improvement"
+            })
+        except Exception as e:
+            reports.append({
+                "filename": resume_pdf.filename,
+                "error": str(e)
+            })
 
-        top_resumes = search_similar_resumes(job_embedding)
-
-        job_role = recommend_job_type(resume_text)
-
-        score = score_resume(resume_text, job_description)
-
-        return {
-            "matched_resumes": top_resumes,
-            "suggested_job_role": job_role,
-            "score_out_of_100": score,
-            "status": "Passed" if score >= 60 else "Needs Improvement"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"reports": reports}
 
 @app.get("/")
 def root():
-    return {"message": "CV Evaluator API is running. Use POST /evaluate-resume/ to evaluate resumes."}
+    return {"message": "CV Evaluator API is running. Use POST /evaluate-resumes/ to evaluate multiple resumes."}
