@@ -31,6 +31,8 @@ def test_resume_evaluation_endpoint():
             data={"job_description": "Software Developer"},
         )
 
+    data = response.json()
     assert response.status_code == 200
-    assert "score_out_of_100" in response.json()
-    assert response.json()["status"] in ["Passed", "Failed"]
+    assert "score_out_of_100" in data["reports"][0]
+    assert data["reports"][0]["status"] in ["Passed", "Failed"]
+
