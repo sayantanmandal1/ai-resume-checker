@@ -277,9 +277,9 @@ class TestResumeCheckerEdgeCases:
         - Docker & Kubernetes
         - CI/CD pipelines
         
-        Salary: $120K-$150K 💰
-        Location: San Francisco, CA 🌉
-        Remote: Hybrid (2-3 days/week) 🏠
+        Salary: $120K-$150K 
+        Location: San Francisco, CA 
+        Remote: Hybrid (2-3 days/week) 
         
         Email: jobs@company.com
         """
