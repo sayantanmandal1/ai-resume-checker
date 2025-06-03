@@ -66,7 +66,7 @@ def score_resume(resume: str, job_description: str) -> int:
         {"role": "user", "content": f"Job Description:\n{job_description}\n\nResume:\n{resume}\n\nGive only the numeric score."}
     ]
     response = openai.chat.completions.create(
-        model="gpt-4",
+        model="gpt-3.5-turbo",
         messages=messages,
         temperature=0.2
     )
