@@ -2,7 +2,7 @@
 
 ## 📘 Overview
 
-**AI Resume Checker** is a full-stack intelligent system that evaluates candidate resumes against job descriptions and returns a score from 0 to 100, along with a pass/fail verdict. It leverages OpenAI's GPT-4 API for semantic analysis and scoring.
+**AI Resume Checker** is a full-stack intelligent system that evaluates candidate resumes against job descriptions and returns a score from 0 to 100, along with a pass/fail verdict. It leverages OpenAI's GPT-3.5 Turbo API for semantic analysis and scoring.
 
 The system is deployed using Docker containers on [Render](https://ai-resume-checker-1-tsrs.onrender.com), and all CI/CD operations—linting, testing, deployment—are automated via GitHub Actions. Live at [Vercel](https://ai-resume-checker-nine.vercel.app/)
 
@@ -16,7 +16,7 @@ The system is deployed using Docker containers on [Render](https://ai-resume-che
 
 ### Backend
 - **FastAPI** – REST API for evaluation
-- **OpenAI GPT-4 API**
+- **OpenAI GPT-3.5 Turbo API**
 - **FAISS** (planned for vector similarity)
 - **Pydantic** – for data modeling and validation
 
@@ -59,7 +59,7 @@ ai-resume-checker/
 ### Flow
 1. Upload a PDF resume and job description.
 2. FastAPI extracts the PDF content and generates a prompt.
-3. The prompt is passed to **OpenAI GPT-4** with the following system instruction:
+3. The prompt is passed to **OpenAI GPT-3.5** with the following system instruction:
    ```
    You are a strict hiring manager. Score the resume's suitability for the job description from 0 to 100.
    ```

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, TrendingUp, Users, X, File } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, TrendingUp, Users, X, File, BookOpen, Plus, Minus } from "lucide-react";
 
 function App() {
   const [jobDescription, setJobDescription] = useState("");
@@ -502,6 +502,128 @@ function App() {
           font-size: 0.9rem;
         }
 
+        .summary-section {
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+          border: 1px solid rgba(102, 126, 234, 0.1);
+          border-radius: 16px;
+          padding: 2rem;
+          margin-bottom: 2rem;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .summary-section::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .summary-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .summary-title {
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #1f2937;
+        }
+
+        .summary-icon {
+          width: 1.8rem;
+          height: 1.8rem;
+          color: #667eea;
+        }
+
+        .summary-content {
+          background: rgba(255, 255, 255, 0.7);
+          border-radius: 12px;
+          padding: 1.5rem;
+          border-left: 4px solid #667eea;
+          margin-bottom: 1.5rem;
+        }
+
+        .summary-text {
+          color: #374151;
+          line-height: 1.6;
+          font-size: 1rem;
+        }
+
+        .skills-section {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+
+        .skills-card {
+          background: rgba(255, 255, 255, 0.7);
+          border-radius: 12px;
+          padding: 1.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .skills-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+
+        .skills-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .skills-present-icon {
+          color: #10b981;
+          width: 1.2rem;
+          height: 1.2rem;
+        }
+
+        .skills-missing-icon {
+          color: #ef4444;
+          width: 1.2rem;
+          height: 1.2rem;
+        }
+
+        .skills-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .skill-tag {
+          padding: 0.4rem 0.8rem;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .skill-present {
+          background: rgba(16, 185, 129, 0.1);
+          color: #059669;
+          border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .skill-missing {
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
+          border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .skill-tag:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
         .similar-resumes {
           margin-top: 2rem;
         }
@@ -558,6 +680,10 @@ function App() {
           }
           
           .score-section {
+            grid-template-columns: 1fr;
+          }
+
+          .skills-section {
             grid-template-columns: 1fr;
           }
 
@@ -681,11 +807,11 @@ function App() {
                       Resume Analysis
                       <span className="resume-index">#{index + 1}</span>
                     </div>
-                  {result.filename && (
-                    <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                      {result.filename}
-                    </div>
-                  )}
+                    {result.filename && (
+                      <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                        {result.filename}
+                      </div>
+                    )}
                   </div>
 
                   <div className="score-section">
@@ -711,6 +837,55 @@ function App() {
                       <div className="score-label">Suggested Role</div>
                     </div>
                   </div>
+
+                  {result.resume_summary && (
+                    <div className="summary-section">
+                      <div className="summary-header">
+                        <BookOpen className="summary-icon" />
+                        <h3 className="summary-title">Professional Summary & Analysis</h3>
+                      </div>
+                      
+                      <div className="summary-content">
+                        <p className="summary-text">{result.resume_summary.trim()}</p>
+                      </div>
+
+                      {(result.skills_present?.length > 0 || result.skills_missing?.length > 0) && (
+                        <div className="skills-section">
+                          {result.skills_present?.length > 0 && (
+                            <div className="skills-card">
+                              <div className="skills-header">
+                                <Plus className="skills-present-icon" />
+                                <h4 className="skills-title">Skills Present</h4>
+                              </div>
+                              <div className="skills-list">
+                                {result.skills_present.map((skill, idx) => (
+                                  <span key={idx} className="skill-tag skill-present">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {result.skills_missing?.length > 0 && (
+                            <div className="skills-card">
+                              <div className="skills-header">
+                                <Minus className="skills-missing-icon" />
+                                <h4 className="skills-title">Skills Needed</h4>
+                              </div>
+                              <div className="skills-list">
+                                {result.skills_missing.map((skill, idx) => (
+                                  <span key={idx} className="skill-tag skill-missing">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {result.matched_resumes && result.matched_resumes.length > 0 && (
                     <div className="similar-resumes">
@@ -739,5 +914,4 @@ function App() {
     </>
   );
 }
-
-export default App;
+export default App
