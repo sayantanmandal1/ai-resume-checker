@@ -88,7 +88,7 @@ def score_resume(resume: str, job_description: str) -> int:
     try:
         score = int(''.join(filter(str.isdigit, content.split()[0])))
         return min(max(score, 0), 100)
-    except:
+    except Exception:
         return 0
 
 
