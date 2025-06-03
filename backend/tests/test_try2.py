@@ -7,7 +7,6 @@ from selenium.webdriver.chrome.options import Options # type: ignore
 from selenium.webdriver.support.ui import WebDriverWait # type: ignore
 from selenium.webdriver.support import expected_conditions as EC # type: ignore
 from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException # type: ignore
-from selenium.webdriver.common.keys import Keys # type: ignore
 
 @pytest.fixture(scope="module")
 def driver():
@@ -67,7 +66,7 @@ def upload_resume(driver, resume_paths, wait_time=30):
         
         # Wait for file processing
         try:
-            file_chip = wait.until(EC.presence_of_element_located((
+            wait.until(EC.presence_of_element_located((
                 By.CSS_SELECTOR, '.file-chip'
             )))
             print("✅ File chip displayed, files processed")
@@ -113,7 +112,7 @@ def wait_for_results(driver, timeout=90):
     
     # Wait for loading state
     try:
-        loading_button = wait.until(EC.presence_of_element_located((
+        wait.until(EC.presence_of_element_located((
             By.XPATH, "//button[contains(text(), 'Analyzing')]"
         )))
         print("✅ Loading state detected")
@@ -231,7 +230,7 @@ class TestResumeCheckerEdgeCases:
             is_disabled = evaluate_button.get_attribute('disabled')
             print(f"Button disabled state with empty job desc: {is_disabled}")
             # Button should be disabled or show validation message
-        except:
+        except Exception:
             print("Evaluate button not found")
 
     def test_very_long_job_description(self, driver):
@@ -317,9 +316,9 @@ class TestResumeCheckerUserInterface:
                 try:
                     validation_msg = driver.find_element(By.CSS_SELECTOR, '.error-message, .validation-error')
                     print(f"Validation message found: {validation_msg.text}")
-                except:
+                except Exception:
                     print("No validation message found")
-        except:
+        except Exception:
             print("Could not test form validation")
 
     def test_file_upload_feedback(self, driver):
@@ -365,9 +364,9 @@ class TestResumeCheckerUserInterface:
             
             # Check if key elements are still accessible
             try:
-                job_desc_input = driver.find_element(By.CSS_SELECTOR, 'textarea.textarea')
-                file_input = driver.find_element(By.CSS_SELECTOR, 'input.file-input')
-                submit_button = driver.find_element(By.CSS_SELECTOR, 'button.submit-btn')
+                driver.find_element(By.CSS_SELECTOR, 'textarea.textarea')
+                driver.find_element(By.CSS_SELECTOR, 'input.file-input')
+                driver.find_element(By.CSS_SELECTOR, 'button.submit-btn')
                 
                 print(f"✅ All elements accessible at {width}x{height}")
             except Exception as e:
@@ -511,7 +510,7 @@ class TestResumeCheckerNegativeScenarios:
             with open(txt_file, 'w') as f:
                 f.write("This is not a PDF resume file")
             invalid_files.append(txt_file)
-        except:
+        except Exception:
             print("Could not create test text file")
         
         # Create an image file (should be rejected)  
@@ -521,7 +520,7 @@ class TestResumeCheckerNegativeScenarios:
                 # Write minimal JPEG header
                 f.write(b'\xFF\xD8\xFF\xE0\x00\x10JFIF')
             invalid_files.append(img_file)
-        except:
+        except Exception:
             print("Could not create test image file")
         
         for invalid_file in invalid_files:
@@ -535,7 +534,7 @@ class TestResumeCheckerNegativeScenarios:
                     try:
                         error_msg = driver.find_element(By.CSS_SELECTOR, '.error-message, .file-error, .invalid-file')
                         print(f"✅ Correctly rejected {invalid_file}: {error_msg.text}")
-                    except:
+                    except Exception:
                         # Check if file was actually processed (it shouldn't be)
                         try:
                             file_chip = driver.find_element(By.CSS_SELECTOR, '.file-chip')
@@ -543,7 +542,7 @@ class TestResumeCheckerNegativeScenarios:
                                 print(f"❌ Invalid file was incorrectly accepted: {invalid_file}")
                             else:
                                 print(f"✅ Invalid file correctly ignored: {invalid_file}")
-                        except:
+                        except Exception:
                             print(f"✅ Invalid file correctly rejected: {invalid_file}")
                             
                 except Exception as e:
@@ -552,7 +551,7 @@ class TestResumeCheckerNegativeScenarios:
                 # Cleanup
                 try:
                     os.remove(invalid_file)
-                except:
+                except Exception:
                     pass
 
     def test_corrupted_pdf_upload(self, driver):
@@ -592,9 +591,9 @@ class TestResumeCheckerNegativeScenarios:
                         except TimeoutException:
                             # Check if it processed anyway (might be robust)
                             try:
-                                result_container = wait_for_results(driver, timeout=30)
+                                wait_for_results(driver, timeout=30)
                                 print("⚠️ System processed corrupted PDF (robust handling)")
-                            except:
+                            except Exception:
                                 print("✅ Correctly failed to process corrupted PDF")
                                 
                     except Exception as e:
@@ -609,7 +608,7 @@ class TestResumeCheckerNegativeScenarios:
             # Cleanup
             try:
                 os.remove(corrupted_pdf)
-            except:
+            except Exception:
                 pass
 
     def test_empty_file_upload(self, driver):
@@ -656,7 +655,7 @@ class TestResumeCheckerNegativeScenarios:
         finally:
             try:
                 os.remove(empty_pdf)
-            except:
+            except Exception:
                 pass
 
     def test_no_job_description_submission(self, driver):
@@ -685,12 +684,12 @@ class TestResumeCheckerNegativeScenarios:
                         try:
                             validation_msg = driver.find_element(By.CSS_SELECTOR, '.error-message, .validation-error, .field-error')
                             print(f"✅ Correctly showed validation: {validation_msg.text}")
-                        except:
+                        except Exception:
                             # If no validation message, check if it actually processed
                             try:
                                 wait_for_results(driver, timeout=30)
                                 print("❌ System processed without job description (should require it)")
-                            except:
+                            except Exception:
                                 print("✅ Correctly prevented processing without job description")
                                 
                     except ElementClickInterceptedException:
@@ -723,7 +722,7 @@ class TestResumeCheckerNegativeScenarios:
                     try:
                         validation_msg = driver.find_element(By.CSS_SELECTOR, '.error-message, .validation-error')
                         print(f"✅ Correctly showed validation: {validation_msg.text}")
-                    except:
+                    except Exception:
                         print("❌ No validation message shown for missing resume")
                         
                 except ElementClickInterceptedException:
@@ -809,14 +808,14 @@ class TestResumeCheckerNegativeScenarios:
                 try:
                     error_msg = driver.find_element(By.CSS_SELECTOR, '.error-message, .file-size-error, .upload-error')
                     print(f"✅ Correctly rejected large file: {error_msg.text}")
-                except:
+                except Exception:
                     # If no immediate error, try to proceed
                     if click_evaluate_button(driver):
                         try:
                             # Should either timeout or show error
-                            result_container = wait_for_results(driver, timeout=120)
+                            wait_for_results(driver, timeout=120)
                             print("⚠️ Large file was processed (might have size limits)")
-                        except:
+                        except Exception:
                             print("✅ Large file correctly failed to process")
                             
             except Exception as e:
@@ -827,7 +826,7 @@ class TestResumeCheckerNegativeScenarios:
         finally:
             try:
                 os.remove(large_pdf)
-            except:
+            except Exception:
                 pass
 
     def test_network_interruption_simulation(self, driver):
@@ -845,7 +844,7 @@ class TestResumeCheckerNegativeScenarios:
         # Wait for processing to start
         try:
             wait = WebDriverWait(driver, 10)
-            loading_button = wait.until(EC.presence_of_element_located((
+            wait.until(EC.presence_of_element_located((
                 By.XPATH, "//button[contains(text(), 'Analyzing')]"
             )))
             print("✅ Processing started")
@@ -867,7 +866,7 @@ class TestResumeCheckerNegativeScenarios:
                     print("✅ Form correctly reset after interruption")
                 else:
                     print("⚠️ Form state persisted (might have session management)")
-            except:
+            except Exception:
                 print("Could not check form state after interruption")
                 
         except TimeoutException:
@@ -896,15 +895,15 @@ class TestResumeCheckerNegativeScenarios:
                     else:
                         print(f"Button disabled after click {i}")
                         break
-                except:
+                except Exception:
                     print(f"Could not click button on attempt {i+1}")
             
             # Check if system handled multiple clicks properly
             try:
                 # Should only process once
-                result_container = wait_for_results(driver, timeout=90)
+                wait_for_results(driver, timeout=90)
                 print("✅ System handled multiple submissions correctly")
-            except:
+            except Exception:
                 print("✅ System correctly prevented duplicate processing")
                 
         except Exception as e:

@@ -50,7 +50,7 @@ def test_resume_ui_flow(driver):
             file_input.send_keys(path)
         print("✅ Resume file uploaded successfully")
         try:
-            file_chip = wait.until(EC.presence_of_element_located((
+            wait.until(EC.presence_of_element_located((
                 By.CSS_SELECTOR, '.file-chip'
             )))
             print("✅ File chip displayed, file processed")
@@ -84,11 +84,11 @@ def test_resume_ui_flow(driver):
             button = driver.find_element(By.CSS_SELECTOR, 'button.submit-btn')
             print(f"Button disabled: {button.get_attribute('disabled')}")
             print(f"Button text: {button.text}")
-        except:
+        except Exception:
             print("Button not found at all")
         raise
     try:
-        loading_button = wait.until(EC.presence_of_element_located((
+        wait.until(EC.presence_of_element_located((
             By.XPATH, "//button[contains(text(), 'Analyzing')]"
         )))
         print("✅ Loading state detected")
@@ -135,7 +135,7 @@ def test_resume_ui_flow(driver):
         try:
             error_element = driver.find_element(By.CSS_SELECTOR, '.error-message')
             print(f"❌ Error found: {error_element.text}")
-        except:
+        except Exception:
             print("No error message found")
         try:
             all_elements = driver.find_elements(By.CSS_SELECTOR, 'div')
@@ -156,14 +156,14 @@ def test_resume_ui_flow(driver):
         try:
             body_text = driver.find_element(By.TAG_NAME, 'body').text
             print(f"Body text: {body_text[:1000]}...")
-        except:
+        except Exception:
             print("Could not get body text")
             
         print("=" * 80)
         try:
             driver.save_screenshot("test_failure_screenshot.png")
             print("Screenshot saved as test_failure_screenshot.png")
-        except:
+        except Exception:
             pass
             
         raise AssertionError("Result container not found after evaluation")
@@ -181,7 +181,7 @@ def test_resume_ui_flow(driver):
             if score_elements:
                 has_results = True
                 print("✅ Found score elements")
-        except:
+        except Exception:
             pass
     
     assert has_results, f"Result container does not contain expected evaluation content. Found: {result_text[:300]}"

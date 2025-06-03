@@ -1,7 +1,7 @@
 import pickle
 import gdown
 import numpy as np
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form
 from dotenv import load_dotenv
 import os
 import openai
