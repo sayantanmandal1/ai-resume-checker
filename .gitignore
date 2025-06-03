@@ -53,3 +53,5 @@ ehthumbs.db
 /backend/Resume.csv
 /backend/allure-results
 /backend/tests/__pycache__
+/.ruff_cache
+/.pytest_cache

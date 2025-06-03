@@ -55,6 +55,8 @@ jobs:
 
       - name: Install Allure CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install -y default-jre
           curl -o allure.zip -L https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.zip
           unzip allure.zip -d allure-cli
           sudo mv allure-cli/allure-2.27.0 /opt/allure
@@ -66,12 +68,11 @@ jobs:
           pytest --maxfail=1 -v --alluredir=allure-results tests/test_try1.py tests/test_try2.py || true
           allure generate allure-results --clean -o allure-report
 
-
       - name: Upload Allure Report as artifact
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: allure-report
+          path: backend/allure-report
 
       - name: Trigger Render Deployment
         run: curl -X POST $RENDER_DEPLOY_HOOK
