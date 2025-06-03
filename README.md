@@ -75,18 +75,28 @@ ai-resume-checker/
 
 ## 🔄 CI/CD Pipeline (GitHub Actions)
 
-### Workflow Summary
-- **Linting**:
-  - Uses [ruff](https://github.com/astral-sh/ruff) to check Python code quality
-- **Testing**:
-  - Downloads:
-    - [`resume_embeddings.pkl`](https://drive.google.com/file/d/1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP/view)
-    - [`sample_resume.pdf`](https://drive.google.com/file/d/1Fd9jE7qaoEIBr6i-P-56DDno2l483Rdp/view)
-  - Uses `pytest` with FastAPI’s `TestClient`
-  - Checks file download + API behavior
-- **Deployment**:
-  - Triggers deployment using a `RENDER_DEPLOY_HOOK` on Render
-  - Embedding file is freshly downloaded on deploy
+### ✅ Workflow Summary
+
+#### 🧹 Linting
+- Uses [`ruff`](https://github.com/astral-sh/ruff) to:
+  - Auto-fix formatting and style issues
+  - Check remaining lint errors (after auto-fix)
+
+#### 🧪 Testing
+- Downloads required files:
+  - [`resume_embeddings.pkl`](https://drive.google.com/file/d/1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP/view)
+  - [`sample_resume.pdf`](https://drive.google.com/file/d/1Fd9jE7qaoEIBr6i-P-56DDno2l483Rdp/view)
+- Runs test suites using `pytest`:
+  - FastAPI routes tested via `TestClient`
+  - Validates API behavior and file ingestion
+- Runs Allure-powered tests:
+  - Collects results with `--alluredir`
+  - Generates an HTML report using `allure`
+  - Uploads the report as a build artifact
+
+#### 🚀 Deployment
+- Sends a POST request to `RENDER_DEPLOY_HOOK` to trigger deployment to [Render](https://render.com/)
+- Ensures `resume_embeddings.pkl` is always freshly downloaded before startup
 
 ---
 
