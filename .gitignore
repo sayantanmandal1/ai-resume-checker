@@ -51,3 +51,5 @@ ehthumbs.db
 
 /backend/resume_embeddings.pkl
 /backend/Resume.csv
+/backend/allure-results
+/backend/tests/__pycache__
