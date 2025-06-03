@@ -34,11 +34,9 @@ def fill_job_description(driver, job_desc_text, wait_time=30):
         job_desc_input = wait.until(EC.element_to_be_clickable((
             By.CSS_SELECTOR, 'textarea.textarea'
         )))
-        driver.execute_script("""
-            const input = arguments[0];
-            input.value = arguments[1];
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        """, job_desc_input, job_desc_text)
+        job_desc_input.clear()
+        job_desc_input.send_keys(job_desc_text)
+
 
         print(f"✅ Job description filled: {job_desc_text[:50]}...")
         return True
@@ -266,7 +264,7 @@ class TestResumeCheckerEdgeCases:
         wait_for_page_load(driver)
         
         job_desc = """
-        🚀 Senior Software Engineer @ Tech Startup! 
+        Senior Software Engineer @ Tech Startup! 
         
         Required Skills:
         • Python 3.8+ & Django/Flask
