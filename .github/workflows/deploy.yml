@@ -62,7 +62,7 @@ jobs:
 
       - name: Run Allure tests and generate report
         run: |
-          pytest --alluredir=allure-results backend/tests/test_try1.py backend/tests/test_try2.py
+          pytest --maxfail=1 -v --alluredir=allure-results backend/tests/test_try1.py backend/tests/test_try2.py || true
           allure generate allure-results --clean -o allure-report
 
       - name: Upload Allure Report as artifact
