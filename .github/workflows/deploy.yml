@@ -22,22 +22,28 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff pytest
+          pip install ruff pytest allure-pytest
 
       - name: Run Python linting and auto-fix with Ruff
         working-directory: backend
-        run: |
-          ruff check . --fix
+        run: ruff check . --fix
 
       - name: Check for remaining lint errors after auto-fix
         working-directory: backend
-        run: |
-          ruff check . --exit-zero  # or omit --exit-zero to fail if errors remain
+        run: ruff check .
 
       - name: Download resume_embeddings.pkl
         working-directory: backend
@@ -45,7 +51,27 @@ jobs:
           curl -L -o resume_embeddings.pkl "https://drive.google.com/uc?export=download&id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
 
       - name: Run prompt-based API tests
-        run: pytest backend/tests
+        run: pytest backend/tests/test_main.py
+
+      - name: Install Allure CLI
+        run: |
+          curl -o allure.zip -L https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.zip
+          unzip allure.zip -d allure-cli
+          sudo mv allure-cli/allure-2.27.0 /opt/allure
+          sudo ln -s /opt/allure/bin/allure /usr/bin/allure
+
+      - name: Run Allure tests and generate report
+        working-directory: backend
+        run: |
+          pytest --maxfail=1 -v --alluredir=allure-results tests/test_try1.py tests/test_try2.py || true
+          allure generate allure-results --clean -o allure-report
+
+
+      - name: Upload Allure Report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report
 
       - name: Trigger Render Deployment
         run: curl -X POST $RENDER_DEPLOY_HOOK
