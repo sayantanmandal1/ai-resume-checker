@@ -54,7 +54,7 @@ def recommend_job_type(resume: str) -> str:
         {"role": "user", "content": f"Suggest the most suitable job role for this resume:\n\n{resume}"}
     ]
     response = openai.chat.completions.create(
-        model="gpt-4",
+        model="gpt-3.5-turbo",
         messages=messages,
         temperature=0.7
     )
