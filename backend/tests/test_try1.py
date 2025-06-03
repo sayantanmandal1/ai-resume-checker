@@ -43,9 +43,9 @@ def test_resume_ui_flow(driver):
             os.path.abspath("tests/sample_resume.pdf"),
             os.path.abspath("tests/sample_resume_2.pdf")
         ]
-        if not os.path.exists(resume_paths):
-            raise FileNotFoundError(f"Resume file not found at: {resume_paths}")
-            
+        for path in resume_paths:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Resume file not found: {path}")
         for path in resume_paths:
             file_input.send_keys(path)
         print("✅ Resume file uploaded successfully")
