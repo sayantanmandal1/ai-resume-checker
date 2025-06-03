@@ -11,7 +11,7 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 @pytest.fixture(scope="module")
 def driver():
     options = Options()
-#    options.add_argument("--headless=new")
+    options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
