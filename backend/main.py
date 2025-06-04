@@ -1,6 +1,7 @@
 import os
 import pickle
 import gdown
+import re
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -93,9 +94,13 @@ def score_resume(resume: str, job_description: str) -> int:
     response = openai.chat.completions.create(model="gpt-3.5-turbo", messages=messages, temperature=0.0)
     try:
         content = response.choices[0].message.content.strip()
-        return min(max(int(''.join(filter(str.isdigit, content.split()[0]))), 0), 100)
+        match = re.search(r"\b(\d{1,3})\b", content)
+        if match:
+            score = int(match.group(1))
+            return min(max(score, 0), 100)
     except Exception:
-        return 0
+        pass
+    return 0
 
 def analyze_resume_strengths(resume: str, job_description: str) -> dict:
     messages = [
