@@ -50,9 +50,9 @@ SKILL_TAXONOMY = {
 
 def normalize_skill(skill: str) -> str:
     skill_lower = skill.lower()
-    for norm, variants in SKILL_TAXONOMY.items():
-        if skill_lower == norm.lower() or skill_lower in [v.lower() for v in variants]:
-            return norm
+    for canonical, variants in SKILL_TAXONOMY.items():
+        if skill_lower == canonical.lower() or skill_lower in [v.lower() for v in variants]:
+            return canonical
     return skill.strip()
 
 def extract_skill_experience(resume_text: str, skills: List[str]) -> dict:
