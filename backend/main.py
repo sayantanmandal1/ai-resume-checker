@@ -13,7 +13,6 @@ from typing import List, Dict, Tuple
 from numpy.linalg import norm
 import fitz
 import openai
-from collections import defaultdict
 import logging
 
 # Setup logging
@@ -257,7 +256,7 @@ def extract_experience_years(text: str, skill: str) -> int:
     ]
     
     text_lower = text.lower()
-    skill_lower = skill.lower()
+    skill.lower()
     
     for pattern in patterns:
         matches = re.finditer(pattern, text_lower, re.IGNORECASE)
