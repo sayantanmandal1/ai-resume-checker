@@ -113,7 +113,7 @@ def score_resume_with_experience(resume_text: str, job_description: str, normali
         content = response.choices[0].message.content
         match = re.search(r"\b(\d{1,3})\b", content)
         return min(max(int(match.group(1)), 0), 100) if match else 0
-    except:
+    except Exception:
         return 0
 
 def analyze_resume_strengths(resume: str, job_description: str) -> dict:
