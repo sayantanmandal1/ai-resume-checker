@@ -31,32 +31,41 @@ class ResumeReport(Base):
     resume_summary = Column(Text)
     skills_present = Column(ARRAY(String))
     skills_missing = Column(ARRAY(String))
+    normalized_skills = Column(ARRAY(String))
+    matching_skills = Column(ARRAY(String))
+    missing_skills = Column(ARRAY(String))
     score_out_of_100 = Column(Integer)
     status = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
-# FastAPI app
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Skill taxonomy
+SKILL_TAXONOMY = {
+    "Node.js": ["Node JS", "Nodejs", "Node"],
+    "React": ["ReactJS", "React.js"],
+    "Python": ["python3", "py"],
+    "MongoDB": ["mongo", "Mongo DB"],
+    "Spring Boot": ["SpringBoot", "Spring"],
+}
 
-# Load embeddings
-url = "https://drive.google.com/uc?id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
-output = "resume_embeddings.pkl"
-gdown.download(url, output, quiet=False)
+def normalize_skill(skill: str) -> str:
+    skill_lower = skill.lower()
+    for norm, variants in SKILL_TAXONOMY.items():
+        if skill_lower == norm.lower() or skill_lower in [v.lower() for v in variants]:
+            return norm
+    return skill.strip()
 
-with open(output, "rb") as f:
-    data = pickle.load(f)
-resume_embeddings = data["embeddings"]
-resume_texts = [item["clean_resume"] for item in data["metadata"]]
+def extract_skill_experience(resume_text: str, skills: List[str]) -> dict:
+    experience = {}
+    for skill in skills:
+        pattern = rf"(?i)(\d+)\+?\s*(?:years|yrs).{{0,15}}{re.escape(skill)}"
+        match = re.search(pattern, resume_text)
+        if match:
+            experience[skill] = int(match.group(1))
+        else:
+            experience[skill] = 0
+    return experience
 
-# Helpers
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     return "".join([page.get_text() for page in doc])
@@ -84,23 +93,28 @@ def recommend_job_type(resume: str) -> str:
     )
     return response.choices[0].message.content.strip().split("\n")[0]
 
-def score_resume(resume: str, job_description: str) -> int:
-    messages = [
-        {"role": "system", "content": (
-            "You are a strict hiring manager. Score the resume only based on how well it matches the job description. "
-            "Give a score from 0 to 100. No explanations.")},
-        {"role": "user", "content": f"Job Description:\n{job_description}\n\nResume:\n{resume}"}
-    ]
-    response = openai.chat.completions.create(model="gpt-3.5-turbo", messages=messages, temperature=0.0)
+def score_resume_with_experience(resume_text: str, job_description: str, normalized_skills: List[str]) -> int:
+    skills_experience = extract_skill_experience(resume_text, normalized_skills)
+    prompt = (
+        "Score the resume from 0 to 100 based on:\n"
+        "1. Skill match (both missing & matching skills).\n"
+        "2. Experience match — prefer exact/near matches to the years mentioned in the JD.\n"
+        "3. Penalize for overqualification or underqualification.\n\n"
+        f"Job Description:\n{job_description}\n\n"
+        f"Resume:\n{resume_text}\n\n"
+        f"Candidate Skills & Experience:\n{skills_experience}"
+    )
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
     try:
-        content = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
         match = re.search(r"\b(\d{1,3})\b", content)
-        if match:
-            score = int(match.group(1))
-            return min(max(score, 0), 100)
-    except Exception:
-        pass
-    return 0
+        return min(max(int(match.group(1)), 0), 100) if match else 0
+    except:
+        return 0
 
 def analyze_resume_strengths(resume: str, job_description: str) -> dict:
     messages = [
@@ -126,31 +140,52 @@ def analyze_resume_strengths(resume: str, job_description: str) -> dict:
             analysis[current].append(line.strip("- ").strip())
     return analysis
 
-# Endpoint
+# FastAPI app
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load embeddings
+url = "https://drive.google.com/uc?id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
+output = "resume_embeddings.pkl"
+gdown.download(url, output, quiet=False)
+with open(output, "rb") as f:
+    data = pickle.load(f)
+resume_embeddings = data["embeddings"]
+resume_texts = [item["clean_resume"] for item in data["metadata"]]
+
 @app.post("/evaluate-resumes/")
-async def evaluate_resumes(
-    job_description: str = Form(...),
-    resume_pdfs: List[UploadFile] = File(...)
-):
+async def evaluate_resumes(job_description: str = Form(...), resume_pdfs: List[UploadFile] = File(...)):
     session = SessionLocal()
     reports = []
     for resume_pdf in resume_pdfs:
         try:
             pdf_bytes = await resume_pdf.read()
             resume_text = extract_text_from_pdf(pdf_bytes)
+            resume_analysis = analyze_resume_strengths(resume_text, job_description)
+            skills_present = resume_analysis["skills_present"]
+            skills_missing = resume_analysis["skills_missing"]
+            normalized_skills = list(set([normalize_skill(skill) for skill in skills_present]))
+            score = score_resume_with_experience(resume_text, job_description, normalized_skills)
+            status = "Passed" if score >= 60 else "Needs Improvement"
             job_embedding = get_embedding(job_description)
             top_resumes = search_similar_resumes(job_embedding)
             job_role = recommend_job_type(resume_text)
-            resume_analysis = analyze_resume_strengths(resume_text, job_description)
-            score = score_resume(resume_text, job_description)
-            status = "Passed" if score >= 60 else "Needs Improvement"
 
             report = ResumeReport(
                 filename=resume_pdf.filename,
                 suggested_job_role=job_role,
                 resume_summary=resume_analysis["resume_summary"],
-                skills_present=resume_analysis["skills_present"],
-                skills_missing=resume_analysis["skills_missing"],
+                skills_present=skills_present,
+                skills_missing=skills_missing,
+                normalized_skills=normalized_skills,
+                matching_skills=skills_present,
+                missing_skills=skills_missing,
                 score_out_of_100=score,
                 status=status
             )
@@ -162,8 +197,9 @@ async def evaluate_resumes(
                 "matched_resumes": top_resumes,
                 "suggested_job_role": job_role,
                 "resume_summary": resume_analysis["resume_summary"],
-                "skills_present": resume_analysis["skills_present"],
-                "skills_missing": resume_analysis["skills_missing"],
+                "skills_present": skills_present,
+                "skills_missing": skills_missing,
+                "normalized_skills": normalized_skills,
                 "score_out_of_100": score,
                 "status": status
             })
