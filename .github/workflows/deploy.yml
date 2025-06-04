@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Python linting and auto-fix with Ruff
         working-directory: backend
-        run: ruff check . --fix
+        run: ruff check . --fix --unsafe-fixes
 
       - name: Check for remaining lint errors after auto-fix
         working-directory: backend

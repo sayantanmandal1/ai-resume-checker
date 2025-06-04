@@ -413,7 +413,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         return 0.0
     try:
         return np.dot(a, b) / (norm(a) * norm(b))
-    except:
+    except Exception:
         return 0.0
 
 def search_similar_resumes(job_embedding: np.ndarray, top_k=5):
@@ -422,7 +422,7 @@ def search_similar_resumes(job_embedding: np.ndarray, top_k=5):
         scores = [cosine_similarity(job_embedding, emb) for emb in resume_embeddings]
         top_indices = np.argsort(scores)[::-1][:top_k]
         return [resume_texts[i] for i in top_indices]
-    except:
+    except Exception:
         return []
 
 def recommend_job_type(resume: str) -> str:
@@ -488,7 +488,7 @@ def calculate_final_score(skill_score: float, experience_score: float, resume_te
         resume_embedding = get_embedding(resume_text)
         jd_embedding = get_embedding(jd_text)
         relevance_score = cosine_similarity(resume_embedding, jd_embedding) * 100
-    except:
+    except Exception:
         relevance_score = 60.0
     
     # Weighted final score
