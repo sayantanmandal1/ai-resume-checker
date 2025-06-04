@@ -39,7 +39,7 @@ class ResumeReport(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# Skill taxonomy
+# Skill taxonom
 SKILL_TAXONOMY = {
     "Node.js": ["Node JS", "Nodejs", "Node"],
     "React": ["ReactJS", "React.js"],
