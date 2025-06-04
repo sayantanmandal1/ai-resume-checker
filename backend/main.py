@@ -45,7 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load embeddings
+# Load embedding
 url = "https://drive.google.com/uc?id=1oM5yvJy3ugBHZ_RZOhZxlV3cESZwRZKP"
 output = "resume_embeddings.pkl"
 gdown.download(url, output, quiet=False)
