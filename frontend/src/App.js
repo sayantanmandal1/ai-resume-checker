@@ -9,17 +9,35 @@ function App() {
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const pdfFiles = files.filter(file => file.type === "application/pdf");
-    
-    if (pdfFiles.length !== files.length) {
-      setError("Only PDF files are allowed. Some files were filtered out.");
+  const ALLOWED_TYPES = [
+    "application/pdf",
+    "application/msword", // .doc
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  ];
+
+  const isDuplicate = (file, fileList) =>
+    fileList.some(
+      existing => existing.name === file.name && existing.size === file.size
+    );
+
+  const filterAndAddFiles = (files) => {
+    const validFiles = files.filter(file => ALLOWED_TYPES.includes(file.type));
+    const newFiles = validFiles.filter(file => !isDuplicate(file, resumeFiles));
+
+    if (validFiles.length !== files.length) {
+      setError("Only PDF and Word files (.pdf, .doc, .docx) are allowed. Some files were filtered out.");
     } else {
       setError(null);
     }
-    
-    setResumeFiles(prev => [...prev, ...pdfFiles]);
+
+    if (newFiles.length > 0) {
+      setResumeFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    filterAndAddFiles(files);
   };
 
   const removeFile = (indexToRemove) => {
@@ -40,18 +58,10 @@ function App() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files) {
       const files = Array.from(e.dataTransfer.files);
-      const pdfFiles = files.filter(file => file.type === "application/pdf");
-      
-      if (pdfFiles.length !== files.length) {
-        setError("Only PDF files are allowed. Some files were filtered out.");
-      } else {
-        setError(null);
-      }
-      
-      setResumeFiles(prev => [...prev, ...pdfFiles]);
+      filterAndAddFiles(files);
     }
   };
 
@@ -724,6 +734,7 @@ function App() {
                 <Upload style={{ width: '1.2rem', height: '1.2rem', display: 'inline', marginRight: '0.5rem' }} />
                 Resume Upload ({resumeFiles.length} file{resumeFiles.length !== 1 ? 's' : ''} selected)
               </label>
+
               <div
                 className={`file-upload ${dragActive ? 'drag-active' : ''} ${resumeFiles.length > 0 ? 'has-files' : ''}`}
                 onDragEnter={handleDrag}
@@ -733,29 +744,34 @@ function App() {
               >
                 <input
                   type="file"
-                  accept="application/pdf"
+                  accept=".pdf,.doc,.docx"
                   multiple
                   onChange={handleFileChange}
                   className="file-input"
                 />
+
                 <div className="upload-content">
                   <Upload className="upload-icon" />
                   <div className="upload-text">
-                    <div>Drop your PDF files here or click to browse</div>
+                    <div>Drop your PDF or Word files here, or click to browse</div>
                     <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                      Multiple PDF files supported, max 10MB each
+                      Supported: .pdf, .doc, .docx — Max 10MB each
                     </div>
                   </div>
+
                   {resumeFiles.length > 0 && (
                     <div className="file-list">
                       {resumeFiles.map((file, index) => (
                         <div key={index} className="file-chip">
                           <File style={{ width: '1rem', height: '1rem' }} />
                           <span className="file-name">{file.name}</span>
-                          <div className="remove-file" onClick={(e) => {
-                            e.stopPropagation();
-                            removeFile(index);
-                          }}>
+                          <div
+                            className="remove-file"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFile(index);
+                            }}
+                          >
                             <X style={{ width: '1rem', height: '1rem' }} />
                           </div>
                         </div>
@@ -765,6 +781,7 @@ function App() {
                 </div>
               </div>
             </div>
+
 
             <button type="button" onClick={handleSubmit} disabled={loading} className="submit-btn">
               <div className="btn-content">
