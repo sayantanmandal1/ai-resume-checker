@@ -14,10 +14,6 @@ from numpy.linalg import norm
 import fitz
 import openai
 import logging
-from docx import Document
-import io
-import docx2txt
-
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +33,6 @@ class ResumeReport(Base):
     __tablename__ = "resume_reports"
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String)
-    file_type = Column(String)  # Added to track file type
     suggested_job_role = Column(String)
     resume_summary = Column(Text)
     skills_present = Column(ARRAY(String))
@@ -69,12 +64,6 @@ def migrate_database():
                 logger.info("Added skill_match_score column")
             except Exception:
                 logger.info("skill_match_score column already exists")
-            
-            try:
-                connection.execute(text("ALTER TABLE resume_reports ADD COLUMN file_type VARCHAR(10) DEFAULT 'pdf'"))
-                logger.info("Added file_type column")
-            except Exception:
-                logger.info("file_type column already exists")
             
             connection.commit()
     except Exception as e:
@@ -188,95 +177,6 @@ SKILL_TAXONOMY = {
     "Nginx": ["nginx server", "nginx proxy"],
     "Apache": ["apache server", "apache http"],
 }
-
-def get_file_type(filename: str) -> str:
-    """Determine file type from filename"""
-    if filename.lower().endswith('.pdf'):
-        return 'pdf'
-    elif filename.lower().endswith('.docx'):
-        return 'docx'
-    elif filename.lower().endswith('.doc'):
-        return 'doc'
-    else:
-        return 'unknown'
-
-def extract_text_from_pdf(pdf_bytes: bytes) -> str:
-    """Extract text from PDF with better error handling"""
-    try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        text = ""
-        for page in doc:
-            text += page.get_text() + "\n"
-        doc.close()
-        return text.strip()
-    except Exception as e:
-        logger.error(f"Error extracting PDF text: {e}")
-        return ""
-
-def extract_text_from_docx(docx_bytes: bytes) -> str:
-    """Extract text from DOCX file"""
-    try:
-        # Method 1: Using python-docx
-        doc = Document(io.BytesIO(docx_bytes))
-        text_parts = []
-        
-        # Extract text from paragraphs
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                text_parts.append(paragraph.text.strip())
-        
-        # Extract text from tables
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    if cell.text.strip():
-                        text_parts.append(cell.text.strip())
-        
-        text = "\n".join(text_parts)
-        
-        # If no text found, try alternative method
-        if not text.strip():
-            try:
-                # Method 2: Using python-docx2txt as fallback
-                text = docx2txt.process(io.BytesIO(docx_bytes))
-            except Exception as e:
-                logger.warning(f"Fallback docx2txt method failed: {e}")
-        
-        return text.strip()
-    
-    except Exception as e:
-        logger.error(f"Error extracting DOCX text: {e}")
-        return ""
-
-def extract_text_from_doc(doc_bytes: bytes) -> str:
-    """Extract text from DOC file (legacy Word format)"""
-    try:
-        # For .doc files, we'll try to use python-docx2txt
-        # Note: This might not work perfectly for all .doc files
-        # as they use a different format than .docx
-        text = docx2txt.process(io.BytesIO(doc_bytes))
-        return text.strip()
-    except Exception as e:
-        logger.error(f"Error extracting DOC text: {e}")
-        # If docx2txt fails, we could try other libraries like python-docx or antiword
-        # For now, return empty string
-        return ""
-
-def extract_text_from_file(file_bytes: bytes, filename: str) -> Tuple[str, str]:
-    """Extract text from file based on file type"""
-    file_type = get_file_type(filename)
-    
-    if file_type == 'pdf':
-        text = extract_text_from_pdf(file_bytes)
-    elif file_type == 'docx':
-        text = extract_text_from_docx(file_bytes)
-    elif file_type == 'doc':
-        text = extract_text_from_doc(file_bytes)
-    else:
-        logger.error(f"Unsupported file type: {file_type}")
-        text = ""
-    
-    return text, file_type
 
 def normalize_skill(skill: str) -> str:
     """Normalize skills using comprehensive taxonomy"""
@@ -480,6 +380,19 @@ def calculate_skill_match_score(resume_skills: List[str], jd_skills: List[str]) 
     
     return final_score, matching_skills, missing_skills
 
+def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+    """Extract text from PDF with better error handling"""
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text = ""
+        for page in doc:
+            text += page.get_text() + "\n"
+        doc.close()
+        return text.strip()
+    except Exception as e:
+        logger.error(f"Error extracting PDF text: {e}")
+        return ""
+
 def get_embedding(text: str) -> np.ndarray:
     """Get text embedding using OpenAI"""
     try:
@@ -587,7 +500,7 @@ def calculate_final_score(skill_score: float, experience_score: float, resume_te
     return min(max(int(round(final_score)), 0), 100)
 
 # Initialize FastAPI app
-app = FastAPI(title="Advanced Resume Evaluator", version="2.1.0")
+app = FastAPI(title="Advanced Resume Evaluator", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -627,9 +540,9 @@ async def load_embeddings():
 @app.post("/evaluate-resumes/")
 async def evaluate_resumes(
     job_description: str = Form(...), 
-    resume_files: List[UploadFile] = File(...)
+    resume_pdfs: List[UploadFile] = File(...)
 ):
-    """Evaluate resumes against job description with comprehensive scoring - supports PDF, DOCX, and DOC files"""
+    """Evaluate resumes against job description with comprehensive scoring"""
     
     session = SessionLocal()
     reports = []
@@ -642,27 +555,18 @@ async def evaluate_resumes(
         # Get job embedding for similarity search
         job_embedding = get_embedding(job_description)
         
-        for resume_file in resume_files:
+        for resume_pdf in resume_pdfs:
             try:
-                logger.info(f"Processing resume: {resume_file.filename}")
+                logger.info(f"Processing resume: {resume_pdf.filename}")
                 
-                # Check file type
-                file_type = get_file_type(resume_file.filename)
-                if file_type not in ['pdf', 'docx', 'doc']:
-                    reports.append({
-                        "filename": resume_file.filename,
-                        "error": "Unsupported file type. Please upload PDF, DOCX, or DOC files only."
-                    })
-                    continue
-                
-                # Extract text from file
-                file_bytes = await resume_file.read()
-                resume_text, detected_file_type = extract_text_from_file(file_bytes, resume_file.filename)
+                # Extract text from PDF
+                pdf_bytes = await resume_pdf.read()
+                resume_text = extract_text_from_pdf(pdf_bytes)
                 
                 if not resume_text.strip():
                     reports.append({
-                        "filename": resume_file.filename,
-                        "error": f"Could not extract text from {file_type.upper()} file"
+                        "filename": resume_pdf.filename,
+                        "error": "Could not extract text from PDF"
                     })
                     continue
                 
@@ -709,8 +613,7 @@ async def evaluate_resumes(
                 # Create report with error handling for database save
                 try:
                     report = ResumeReport(
-                        filename=resume_file.filename,
-                        file_type=detected_file_type,
+                        filename=resume_pdf.filename,
                         suggested_job_role=suggested_job_role,
                         resume_summary=resume_summary,
                         skills_present=resume_skills,
@@ -726,17 +629,16 @@ async def evaluate_resumes(
                     
                     session.add(report)
                     session.commit()
-                    logger.info(f"Successfully saved report for {resume_file.filename}")
+                    logger.info(f"Successfully saved report for {resume_pdf.filename}")
                     
                 except Exception as db_error:
-                    logger.error(f"Database save error for {resume_file.filename}: {db_error}")
+                    logger.error(f"Database save error for {resume_pdf.filename}: {db_error}")
                     session.rollback()
                     # Continue processing even if DB save fails
                 
                 # Prepare response (regardless of DB save status)
                 reports.append({
-                    "filename": resume_file.filename,
-                    "file_type": detected_file_type,
+                    "filename": resume_pdf.filename,
                     "suggested_job_role": suggested_job_role,
                     "resume_summary": resume_summary,
                     "skills_present": resume_skills,
@@ -752,12 +654,12 @@ async def evaluate_resumes(
                     "matched_resumes_preview": similar_resumes[:2]  # Limit for response size
                 })
                 
-                logger.info(f"Successfully processed {resume_file.filename} - Score: {final_score}")
+                logger.info(f"Successfully processed {resume_pdf.filename} - Score: {final_score}")
                 
             except Exception as e:
-                logger.error(f"Error processing {resume_file.filename}: {e}")
+                logger.error(f"Error processing {resume_pdf.filename}: {e}")
                 reports.append({
-                    "filename": resume_file.filename,
+                    "filename": resume_pdf.filename,
                     "error": f"Processing error: {str(e)}"
                 })
     
@@ -771,54 +673,23 @@ async def evaluate_resumes(
     return {
         "message": f"Analysis complete for {len(reports)} resumes",
         "job_skills_extracted": jd_skills,
-        "supported_file_types": ["PDF", "DOCX", "DOC"],
         "reports": reports
-    }
-
-@app.get("/supported-formats/")
-def get_supported_formats():
-    """Get information about supported file formats"""
-    return {
-        "supported_formats": {
-            "PDF": {
-                "extension": ".pdf",
-                "description": "Portable Document Format",
-                "extraction_method": "PyMuPDF (fitz)"
-            },
-            "DOCX": {
-                "extension": ".docx",
-                "description": "Microsoft Word Document (2007+)",
-                "extraction_method": "python-docx with fallback to docx2txt"
-            },
-            "DOC": {
-                "extension": ".doc",
-                "description": "Microsoft Word Document (Legacy)",
-                "extraction_method": "docx2txt"
-            }
-        },
-        "recommendations": {
-            "best_format": "PDF or DOCX for best text extraction accuracy",
-            "note": "DOC files (legacy Word format) may have limited extraction capabilities"
-        }
     }
 
 @app.get("/")
 def root():
     return {
-        "message": "Advanced CV Evaluator API v2.1 is running",
+        "message": "Advanced CV Evaluator API v2.0 is running",
         "endpoints": {
             "evaluate": "POST /evaluate-resumes/",
-            "formats": "GET /supported-formats/",
             "health": "GET /"
         },
-        "supported_file_types": ["PDF", "DOCX", "DOC"],
         "features": [
             "Advanced skill extraction using GPT-4",
             "Comprehensive skill normalization",
             "Experience-based scoring",
             "Vector similarity matching",
-            "Detailed skill gap analysis",
-            "Multi-format document support (PDF, DOCX, DOC)"
+            "Detailed skill gap analysis"
         ]
     }
 
