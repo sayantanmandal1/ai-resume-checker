@@ -15,8 +15,9 @@ import fitz
 import openai
 import logging
 from docx import Document
-import docx2txt
 import io
+import docx2txt
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -237,7 +238,7 @@ def extract_text_from_docx(docx_bytes: bytes) -> str:
         if not text.strip():
             try:
                 # Method 2: Using python-docx2txt as fallback
-                text = python_docx2txt.process(io.BytesIO(docx_bytes))
+                text = docx2txt.process(io.BytesIO(docx_bytes))
             except Exception as e:
                 logger.warning(f"Fallback docx2txt method failed: {e}")
         
@@ -253,7 +254,7 @@ def extract_text_from_doc(doc_bytes: bytes) -> str:
         # For .doc files, we'll try to use python-docx2txt
         # Note: This might not work perfectly for all .doc files
         # as they use a different format than .docx
-        text = python_docx2txt.process(io.BytesIO(doc_bytes))
+        text = docx2txt.process(io.BytesIO(doc_bytes))
         return text.strip()
     except Exception as e:
         logger.error(f"Error extracting DOC text: {e}")
@@ -792,7 +793,7 @@ def get_supported_formats():
             "DOC": {
                 "extension": ".doc",
                 "description": "Microsoft Word Document (Legacy)",
-                "extraction_method": "python-docx2txt"
+                "extraction_method": "docx2txt"
             }
         },
         "recommendations": {
