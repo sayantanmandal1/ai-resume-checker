@@ -100,137 +100,164 @@ const downloadReport = (candidate) => {
   doc.save(`${candidate.candidate_name || 'candidate'}_report.pdf`);
 };
 
-const CandidateCard = ({ candidate, setSelectedCandidate, suitabilityThreshold = 75 }) => (
-  <div className="candidate-card">
-    <div className="candidate-header">
-      <div className="candidate-info">
-        <div className="candidate-avatar"><User size={24} /></div>
-        <div>
-          <h3>{candidate.candidate_name || candidate.filename}</h3>
-          <p className="candidate-role">{candidate.suggested_job_role}</p>
-        </div>
-      </div>
-      <div className={`score-badge ${getScoreColor(candidate.score_out_of_100)}`}>
-        {candidate.score_out_of_100}%
-      </div>
-    </div>
+const CandidateCard = ({ candidate, setSelectedCandidate, suitabilityThreshold = 75 }) => {
+  const [isSendingInvite, setIsSendingInvite] = React.useState(false);
+  const [emailSent, setEmailSent] = React.useState(candidate.email_sent || false);
 
-    <div className="candidate-body">
-      <div className={`status-badge ${getStatusColor(candidate.status)}`}>
-        {candidate.status}
-      </div>
+  const handleSendInvitation = async () => {
+    if (!candidate.id) {
+      alert('Error: Candidate ID not found. Please refresh and try again.');
+      return;
+    }
 
-      {candidate.candidate_email && (
-        <div className="candidate-contact">
-          <Mail size={16} />
-          <span>{candidate.candidate_email}</span>
-        </div>
-      )}
+    setIsSendingInvite(true);
+    
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/resend-interview-invitation/${candidate.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      <div className="candidate-summary"><p>{candidate.resume_summary}</p></div>
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.email_sent) {
+          setEmailSent(true);
+          alert('Interview invitation sent successfully!');
+        } else {
+          alert('Failed to send invitation. Please try again.');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to send invitation: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert('Something went wrong while sending the invitation. Please check your connection and try again.');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
 
-      <div className="score-breakdown">
-        <div className="score-item">
-          <span className="score-label">Skill Match</span>
-          <div className="score-bar">
-            <div className="score-fill skill" style={{ width: `${candidate.skill_match_score}%` }} />
-          </div>
-          <span className="score-value">{candidate.skill_match_score?.toFixed(1)}%</span>
-        </div>
-        <div className="score-item">
-          <span className="score-label">Experience</span>
-          <div className="score-bar">
-            <div className="score-fill experience" style={{ width: `${candidate.experience_score}%` }} />
-          </div>
-          <span className="score-value">{candidate.experience_score?.toFixed(1)}%</span>
-        </div>
-      </div>
-
-      <div className="skills-section">
-        <div className="skills-group">
-          <h4 className="skills-title matching">
-            <CheckCircle size={16} />
-            Matching Skills ({candidate.matching_skills?.length || 0})
-          </h4>
-          <div className="skills-list">
-            {candidate.matching_skills?.slice(0, 6).map((skill, i) => (
-              <span key={i} className="skill-tag matching">{skill}</span>
-            ))}
-            {candidate.matching_skills?.length > 6 && (
-              <span className="skill-tag more">+{candidate.matching_skills.length - 6} more</span>
-            )}
+  return (
+    <div className="candidate-card">
+      <div className="candidate-header">
+        <div className="candidate-info">
+          <div className="candidate-avatar"><User size={24} /></div>
+          <div>
+            <h3>{candidate.candidate_name || candidate.filename}</h3>
+            <p className="candidate-role">{candidate.suggested_job_role}</p>
           </div>
         </div>
+        <div className={`score-badge ${getScoreColor(candidate.score_out_of_100)}`}>
+          {candidate.score_out_of_100}%
+        </div>
+      </div>
 
-        {candidate.missing_skills?.length > 0 && (
+      <div className="candidate-body">
+        <div className={`status-badge ${getStatusColor(candidate.status)}`}>
+          {candidate.status}
+        </div>
+
+        {candidate.candidate_email && (
+          <div className="candidate-contact">
+            <Mail size={16} />
+            <span>{candidate.candidate_email}</span>
+          </div>
+        )}
+
+        <div className="candidate-summary"><p>{candidate.resume_summary}</p></div>
+
+        <div className="score-breakdown">
+          <div className="score-item">
+            <span className="score-label">Skill Match</span>
+            <div className="score-bar">
+              <div className="score-fill skill" style={{ width: `${candidate.skill_match_score}%` }} />
+            </div>
+            <span className="score-value">{candidate.skill_match_score?.toFixed(1)}%</span>
+          </div>
+          <div className="score-item">
+            <span className="score-label">Experience</span>
+            <div className="score-bar">
+              <div className="score-fill experience" style={{ width: `${candidate.experience_score}%` }} />
+            </div>
+            <span className="score-value">{candidate.experience_score?.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div className="skills-section">
           <div className="skills-group">
-            <h4 className="skills-title missing">
-              <XCircle size={16} />
-              Missing Skills ({candidate.missing_skills.length})
+            <h4 className="skills-title matching">
+              <CheckCircle size={16} />
+              Matching Skills ({candidate.matching_skills?.length || 0})
             </h4>
             <div className="skills-list">
-              {candidate.missing_skills.slice(0, 4).map((skill, i) => (
-                <span key={i} className="skill-tag missing">{skill}</span>
+              {candidate.matching_skills?.slice(0, 6).map((skill, i) => (
+                <span key={i} className="skill-tag matching">{skill}</span>
               ))}
-              {candidate.missing_skills.length > 4 && (
-                <span className="skill-tag more">+{candidate.missing_skills.length - 4} more</span>
+              {candidate.matching_skills?.length > 6 && (
+                <span className="skill-tag more">+{candidate.matching_skills.length - 6} more</span>
               )}
             </div>
+          </div>
+
+          {candidate.missing_skills?.length > 0 && (
+            <div className="skills-group">
+              <h4 className="skills-title missing">
+                <XCircle size={16} />
+                Missing Skills ({candidate.missing_skills.length})
+              </h4>
+              <div className="skills-list">
+                {candidate.missing_skills.slice(0, 4).map((skill, i) => (
+                  <span key={i} className="skill-tag missing">{skill}</span>
+                ))}
+                {candidate.missing_skills.length > 4 && (
+                  <span className="skill-tag more">+{candidate.missing_skills.length - 4} more</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {candidate.score_out_of_100 >= suitabilityThreshold && (
+          <div className="interview-status">
+            <div className="interview-badge">
+              <Star size={16} /> Interview Eligible
+            </div>
+            
+            {emailSent ? (
+              <div className="email-status">
+                <CheckCircle size={14} /><span>Invitation Sent</span>
+              </div>
+            ) : (
+              <button
+                className="send-invite-btn"
+                onClick={handleSendInvitation}
+                disabled={isSendingInvite}
+                style={{ 
+                  opacity: isSendingInvite ? 0.6 : 1,
+                  cursor: isSendingInvite ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isSendingInvite ? 'Sending...' : 'Send Invitation'}
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {candidate.score_out_of_100 >= suitabilityThreshold && (
-        <div className="interview-status">
-          <div className="interview-badge">
-            <Star size={16} /> Interview Eligible
-          </div>
-          
-          {candidate.email_sent ? (
-            <div className="email-status">
-              <CheckCircle size={14} /><span>Invitation Sent</span>
-            </div>
-          ) : (
-            <button
-              className="send-invite-btn"
-              onClick={async () => {
-                try {
-                  
-                  const res = await fetch(`/resend-interview-invitation/${candidate.id}`, {
-                    method: 'POST',
-                  });
-
-                  if (res.ok) {
-                    alert('Invitation sent successfully.');
-                    candidate.email_sent = true;
-                  } else {
-                    const err = await res.json();
-                    alert(`Failed to send invitation: ${err.message || 'Unknown error'}`);
-                  }
-                } catch (e) {
-                  console.error(e);
-                  alert('Something went wrong while sending the invitation.');
-                }
-              }}
-            >
-              Send Invitation
-            </button>
-          )}
-
-        </div>
-      )}
-
+      <div className="candidate-actions">
+        <button onClick={() => setSelectedCandidate(candidate)} className="action-btn view">
+          <Eye size={16} /> View Details
+        </button>
+        <button onClick={() => downloadReport(candidate)} className="action-btn download">
+          <Download size={16} /> Download Report
+        </button>
+      </div>
     </div>
-
-    <div className="candidate-actions">
-      <button onClick={() => setSelectedCandidate(candidate)} className="action-btn view">
-        <Eye size={16} /> View Details
-      </button>
-      <button onClick={() => downloadReport(candidate)} className="action-btn download">
-        <Download size={16} /> Download Report
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 export default CandidateCard;

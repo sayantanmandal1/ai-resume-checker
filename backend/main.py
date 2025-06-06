@@ -848,18 +848,17 @@ async def evaluate_resumes(
                 resume_summary = generate_resume_summary(resume_text, job_description)
                 suggested_job_role = recommend_job_type(resume_text)
 
-                # Generate credentials and create Firebase user if score meets threshold
-                email_sent = False
+                # Only prepare credentials for eligible candidates, but don't send email yet
                 interview_username = None
                 interview_password = None
                 firebase_uid = None
 
                 if final_score >= SUITABILITY_THRESHOLD and candidate_email:
                     try:
-                        # Generate credentials
+                        # Generate credentials but don't send email
                         interview_username, interview_password = generate_credentials()
                         
-                        # Create Firebase user
+                        # Create Firebase user but don't send email
                         firebase_uid = create_firebase_user(
                             candidate_email, 
                             interview_password, 
@@ -867,29 +866,18 @@ async def evaluate_resumes(
                             interview_username
                         )
                         
-                        # Send interview invitation email
                         if firebase_uid:
-                            email_sent = send_interview_email(
-                                candidate_email,
-                                candidate_name,
-                                interview_username,
-                                interview_password,
-                                matching_skills
-                            )
-                            
-                            if email_sent:
-                                interview_invitations_sent += 1
-                                logger.info(f"Interview invitation sent to {candidate_email}")
-                            else:
-                                logger.warning(f"Failed to send email to {candidate_email}")
+                            logger.info(f"Firebase user created for {candidate_email} - ready for interview invitation")
                         else:
                             logger.warning(f"Failed to create Firebase user for {candidate_email}")
                             
                     except Exception as e:
-                        logger.error(f"Error in interview invitation process for {candidate_email}: {e}")
+                        logger.error(f"Error creating Firebase user for {candidate_email}: {e}")
 
                 similar_resumes = search_similar_resumes(job_embedding, top_k=3)
 
+                # Create database record
+                report_id = None
                 try:
                     report = ResumeReport(
                         filename=resume_pdf.filename,
@@ -906,7 +894,7 @@ async def evaluate_resumes(
                         experience_score=experience_score,
                         skill_match_score=skill_score,
                         status=status,
-                        email_sent=email_sent,
+                        email_sent=False,  # Email not sent automatically
                         interview_username=interview_username,
                         interview_password=interview_password,
                         firebase_uid=firebase_uid
@@ -914,13 +902,17 @@ async def evaluate_resumes(
 
                     session.add(report)
                     session.commit()
-                    logger.info(f"Successfully saved report for {resume_pdf.filename}")
+                    session.refresh(report)  # This ensures we get the generated ID
+                    report_id = report.id  # Capture the database ID
+                    logger.info(f"Successfully saved report for {resume_pdf.filename} with ID: {report_id}")
 
                 except Exception as db_error:
                     logger.error(f"Database save error for {resume_pdf.filename}: {db_error}")
                     session.rollback()
 
+                # Add to response with database ID
                 reports.append({
+                    "id": report_id,  # IMPORTANT: Include the database ID
                     "filename": resume_pdf.filename,
                     "candidate_email": candidate_email,
                     "candidate_name": candidate_name,
@@ -937,7 +929,7 @@ async def evaluate_resumes(
                     "experience_details": exp_details,
                     "status": status,
                     "interview_eligible": final_score >= SUITABILITY_THRESHOLD,
-                    "email_sent": email_sent,
+                    "email_sent": False,  # No automatic email sending
                     "interview_credentials": {
                         "username": interview_username,
                         "password": interview_password
@@ -965,77 +957,14 @@ async def evaluate_resumes(
         "message": f"Analysis complete for {len(reports)} resumes",
         "job_skills_extracted": jd_skills,
         "suitability_threshold": SUITABILITY_THRESHOLD,
-        "interview_invitations_sent": interview_invitations_sent,
+        "interview_invitations_sent": 0,  # No automatic emails sent
         "reports": reports
     }
 
-@app.get("/candidates/")
-def get_candidates():
-    """Get all candidate reports"""
-    session = SessionLocal()
-    try:
-        candidates = session.query(ResumeReport).order_by(ResumeReport.created_at.desc()).all()
-        return {
-            "total_candidates": len(candidates),
-            "candidates": [
-                {
-                    "id": candidate.id,
-                    "filename": candidate.filename,
-                    "candidate_name": candidate.candidate_name,
-                    "candidate_email": candidate.candidate_email,
-                    "score": candidate.score_out_of_100,
-                    "status": candidate.status,
-                    "suggested_job_role": candidate.suggested_job_role,
-                    "email_sent": candidate.email_sent,
-                    "interview_username": candidate.interview_username,
-                    "created_at": candidate.created_at.isoformat() if candidate.created_at else None
-                }
-                for candidate in candidates
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error fetching candidates: {e}")
-        return {"error": str(e)}
-    finally:
-        session.close()
-
-@app.get("/candidates/{candidate_id}")
-def get_candidate_details(candidate_id: int):
-    """Get detailed candidate report"""
-    session = SessionLocal()
-    try:
-        candidate = session.query(ResumeReport).filter(ResumeReport.id == candidate_id).first()
-        if not candidate:
-            return {"error": "Candidate not found"}
-        
-        return {
-            "id": candidate.id,
-            "filename": candidate.filename,
-            "candidate_name": candidate.candidate_name,
-            "candidate_email": candidate.candidate_email,
-            "suggested_job_role": candidate.suggested_job_role,
-            "resume_summary": candidate.resume_summary,
-            "skills_present": candidate.skills_present,
-            "skills_missing": candidate.skills_missing,
-            "matching_skills": candidate.matching_skills,
-            "score_out_of_100": candidate.score_out_of_100,
-            "skill_match_score": candidate.skill_match_score,
-            "experience_score": candidate.experience_score,
-            "status": candidate.status,
-            "email_sent": candidate.email_sent,
-            "interview_username": candidate.interview_username,
-            "firebase_uid": candidate.firebase_uid,
-            "created_at": candidate.created_at.isoformat() if candidate.created_at else None
-        }
-    except Exception as e:
-        logger.error(f"Error fetching candidate details: {e}")
-        return {"error": str(e)}
-    finally:
-        session.close()
 
 @app.post("/resend-interview-invitation/{candidate_id}")
 def resend_interview_invitation(candidate_id: int):
-    """Resend interview invitation to a candidate"""
+    """Send interview invitation to a candidate (only when button is clicked)"""
     session = SessionLocal()
     try:
         candidate = session.query(ResumeReport).filter(ResumeReport.id == candidate_id).first()
@@ -1064,7 +993,7 @@ def resend_interview_invitation(candidate_id: int):
                 )
                 candidate.firebase_uid = firebase_uid
         
-        # Send email
+        # Send email only when this endpoint is called (button click)
         email_sent = send_interview_email(
             candidate.candidate_email,
             candidate.candidate_name,
@@ -1076,6 +1005,9 @@ def resend_interview_invitation(candidate_id: int):
         candidate.email_sent = email_sent
         session.commit()
         
+        if email_sent:
+            logger.info(f"Interview invitation sent to {candidate.candidate_email} via button click")
+        
         return {
             "message": "Interview invitation sent successfully" if email_sent else "Failed to send invitation",
             "email_sent": email_sent,
@@ -1083,10 +1015,12 @@ def resend_interview_invitation(candidate_id: int):
         }
         
     except Exception as e:
-        logger.error(f"Error resending invitation: {e}")
+        logger.error(f"Error sending invitation: {e}")
+        session.rollback()
         return {"error": str(e)}
     finally:
         session.close()
+
 
 @app.get("/interview-candidates/")
 def get_interview_candidates():
