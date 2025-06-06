@@ -113,7 +113,7 @@ const CandidateCard = ({ candidate, setSelectedCandidate, suitabilityThreshold =
     setIsSendingInvite(true);
     
     try {
-      const response = await fetch(`http://127.0.0.1:8000/resend-interview-invitation/${candidate.id}`, {
+      const response = await fetch(`https://ai-resume-checker-1-tsrs.onrender.com/resend-interview-invitation/${candidate.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
