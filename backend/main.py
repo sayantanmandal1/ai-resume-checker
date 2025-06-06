@@ -311,6 +311,13 @@ firebase_credentials = {
 
 credentials = service_account.Credentials.from_service_account_info(firebase_credentials)
 
+
+def is_username_taken(username: str) -> bool:
+    try:
+        return db.collection("usernames").document(username).get().exists
+    except Exception as e:
+        logger.error(f"Error checking if username is taken: {e}")
+        return True
 # Now initialize Firestore with credentials
 db = firestore.Client(credentials=credentials, project=os.getenv("FIREBASE_PROJECT_ID"))
 
@@ -344,8 +351,12 @@ def create_firebase_user(email: str, password: str, name: str, username: str) ->
         logger.warning("Firebase not initialized")
         return None
 
+    if is_username_taken(username):
+        logger.warning(f"Username {username} is already taken.")
+        return None
+
     try:
-        # Try to create a new user
+        # Create a new Firebase user
         user_record = firebase_auth.create_user(
             email=email,
             password=password,
@@ -354,7 +365,6 @@ def create_firebase_user(email: str, password: str, name: str, username: str) ->
         )
         logger.info(f"Created Firebase user: {user_record.uid}")
 
-        # Save username mapping
         save_username_mapping(username, user_record.uid, email)
         return user_record.uid, username
 
@@ -362,45 +372,52 @@ def create_firebase_user(email: str, password: str, name: str, username: str) ->
         logger.warning(f"User with email {email} already exists.")
 
         try:
-            # Fetch existing user
             existing_user = firebase_auth.get_user_by_email(email)
             uid = existing_user.uid
 
-            # Try to get username mapping from Firestore
             username_from_db = get_username_by_uid(uid)
             if not username_from_db:
-                logger.warning(f"No username mapping found for UID {uid}, saving new mapping.")
+                logger.info(f"No existing username mapping found, saving new mapping.")
                 save_username_mapping(username, uid, email)
                 username_from_db = username
 
-            # Optionally reset password to newly generated one
-            firebase_auth.update_user(uid, password=password)
-            logger.info(f"Updated password for existing user {email}")
-
+            # Don't reset password by default – optional
+            logger.info(f"Using existing user without resetting password for {email}")
             return uid, username_from_db
 
         except Exception as e:
-            logger.error(f"Failed to fetch or update existing user: {e}")
+            logger.error(f"Failed to fetch/update existing user: {e}")
             return None
 
     except Exception as e:
         logger.error(f"Error creating Firebase user: {e}")
         return None
 
+
     
 
-def send_interview_email(candidate_email: str, candidate_name: str, username: str, password: str, skills: List[str]) -> bool:
+def send_interview_email(candidate_email: str, candidate_name: str, username: str, password: str, skills: list) -> bool:
     """Send interview invitation email to candidate"""
     if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
         logger.warning("Email credentials not configured")
         return False
 
     try:
-        # Ensure skills is a list of strings
+        # Normalize skills input
         if isinstance(skills, str):
+            # If skills is a string, split by commas
             skills = [skill.strip() for skill in skills.split(',') if skill.strip()]
+        elif isinstance(skills, list):
+            # If skills is a list of single-character strings, likely a mistaken split of a string
+            if all(isinstance(s, str) and len(s) == 1 for s in skills):
+                # Join back and split properly
+                skills_str = "".join(skills)
+                skills = [skill.strip() for skill in skills_str.split(',') if skill.strip()]
+            else:
+                # Clean each skill string (trim spaces)
+                skills = [skill.strip() for skill in skills if isinstance(skill, str) and skill.strip()]
 
-        skills_text = ", ".join(skills[:10])  # Show first 10 skills
+        skills_text = ", ".join(skills[:10])  # Limit to first 10 skills
 
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
@@ -439,7 +456,6 @@ Hiring Team
 ---
 This is an automated message. Please do not reply to this email.
 """
-
         msg.attach(MIMEText(body, 'plain'))
 
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -454,6 +470,7 @@ This is an automated message. Please do not reply to this email.
     except Exception as e:
         logger.error(f"Error sending email to {candidate_email}: {e}")
         return False
+
 
 # Keep all existing functions (normalize_skill, extract_skills_with_gpt, etc.)
 def normalize_skill(skill: str) -> str:
