@@ -11,6 +11,8 @@ body {
   min-height: 100vh;
   color: #2d3748;
   line-height: 1.6;
+
+  zoom: 75%;
 }
 
 .app {

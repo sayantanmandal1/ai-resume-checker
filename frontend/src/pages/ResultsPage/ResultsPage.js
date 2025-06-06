@@ -36,6 +36,7 @@ const ResultsPage = ({ results, resetForm, selectedCandidate, setSelectedCandida
       <CandidateList
         reports={results.reports || []}
         setSelectedCandidate={setSelectedCandidate}
+        suitabilityThreshold={results.suitability_threshold}
       />
 
       {selectedCandidate && (

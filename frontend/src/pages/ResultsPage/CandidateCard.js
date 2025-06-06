@@ -100,7 +100,7 @@ const downloadReport = (candidate) => {
   doc.save(`${candidate.candidate_name || 'candidate'}_report.pdf`);
 };
 
-const CandidateCard = ({ candidate, setSelectedCandidate }) => (
+const CandidateCard = ({ candidate, setSelectedCandidate, suitabilityThreshold = 75 }) => (
   <div className="candidate-card">
     <div className="candidate-header">
       <div className="candidate-info">
@@ -180,7 +180,7 @@ const CandidateCard = ({ candidate, setSelectedCandidate }) => (
         )}
       </div>
 
-      {candidate.interview_eligible && (
+      {candidate.score_out_of_100 >= suitabilityThreshold && (
         <div className="interview-status">
           <div className="interview-badge">
             <Star size={16} /> Interview Eligible
