@@ -22,7 +22,6 @@ import logging
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
-import requests
 from google.cloud import firestore
 from google.oauth2 import service_account
 
@@ -1061,7 +1060,7 @@ def resend_interview_invitation(candidate_id: int):
                     candidate.candidate_email,
                     password,
                     candidate.candidate_name or "Candidate",
-                    interview_username
+                    username
                 )
                 candidate.firebase_uid = firebase_uid
         
