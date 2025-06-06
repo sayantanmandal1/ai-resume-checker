@@ -394,15 +394,19 @@ def send_interview_email(candidate_email: str, candidate_name: str, username: st
     if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
         logger.warning("Email credentials not configured")
         return False
-    
+
     try:
+        # Ensure skills is a list of strings
+        if isinstance(skills, str):
+            skills = [skill.strip() for skill in skills.split(',') if skill.strip()]
+
+        skills_text = ", ".join(skills[:10])  # Show first 10 skills
+
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
         msg['To'] = candidate_email
         msg['Subject'] = "Interview Invitation - Technical Round"
-        
-        skills_text = ", ".join(skills[:10])  # Show first 10 skills
-        
+
         body = f"""
 Dear {candidate_name or 'Candidate'},
 
@@ -435,19 +439,18 @@ Hiring Team
 ---
 This is an automated message. Please do not reply to this email.
 """
-        
+
         msg.attach(MIMEText(body, 'plain'))
-        
+
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(EMAIL_ADDRESS, candidate_email, text)
+        server.sendmail(EMAIL_ADDRESS, candidate_email, msg.as_string())
         server.quit()
-        
+
         logger.info(f"Interview email sent successfully to {candidate_email}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error sending email to {candidate_email}: {e}")
         return False
