@@ -1,10 +1,22 @@
 SELECT id,
        filename,
+       candidate_email,
+       candidate_name,
        suggested_job_role,
        resume_summary,
        skills_present,
        skills_missing,
+       normalized_skills,
+       matching_skills,
+       missing_skills,
        score_out_of_100,
-       status
+       experience_score,
+       skill_match_score,
+       status,
+       email_sent,
+       interview_username,
+       interview_password,
+       firebase_uid,
+       created_at
 FROM public.resume_reports
 LIMIT 1000;
