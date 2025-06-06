@@ -90,7 +90,7 @@ const App = () => {
         formData.append('resume_pdfs', file);
       });
 
-      const response = await fetch('http://127.0.0.1:8000/evaluate-resumes/', {
+      const response = await fetch('https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resumes/', {
         method: 'POST',
         body: formData,
       });
@@ -120,7 +120,7 @@ const App = () => {
     setSendingEmails(prev => new Set([...prev, candidateIndex]));
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/send-interview-invitation/', {
+      const response = await fetch('https://ai-resume-checker-1-tsrs.onrender.com/send-interview-invitation/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
