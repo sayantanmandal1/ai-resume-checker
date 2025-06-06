@@ -60,7 +60,7 @@ const AppContent = () => {
 
       const data = await response.json();
       setResults(data);
-      // Navigate to results page after successful analysis
+      // Navigate to results page after successful analysiss
       navigate('/results');
     } catch (err) {
       setError(`Analysis failed: ${err.message}`);
