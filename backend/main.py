@@ -582,46 +582,35 @@ def extract_jd_requirements(jd_text: str) -> Dict[str, Dict]:
     return requirements
 
 def extract_experience_years(text: str, skill: str) -> int:
-    """Enhanced experience extraction with better pattern matching"""
+    text = text.lower()
+    skill = skill.lower()
+    
+    # Look for grouped years like: "Spring framework Rest, Boot, MVC, JDBC, Microservice 6 years"
+    grouped_pattern = re.findall(r'([\w\s\,\-]+?)\s+(\d+)[\+\-\s]*(?:years?|yrs?)', text)
+    for skill_group, years in grouped_pattern:
+        if skill in skill_group.lower():
+            return int(years)
+
+    # Fallback to individual patterns
     patterns = [
-        # Direct patterns: "5 years experience in React"
-        rf"(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+|of\s+)?{re.escape(skill)}",
-        # Reverse patterns: "React 5 years"
-        rf"{re.escape(skill)}[\s\w\-:]*?(\d+)[\+\-\s]*(?:years?|yrs?)",
-        # Years before skill: "5 years React"
-        rf"(\d+)[\+\-\s]*(?:years?|yrs?)[\s\w\-]*?(?:of\s+|in\s+|with\s+|using\s+)?{re.escape(skill)}",
-        # Project duration patterns: "React project - 2 years"
-        rf"{re.escape(skill)}[\s\w\-]*?project[\s\w\-]*?(\d+)[\+\-\s]*(?:years?|yrs?)",
-        # Experience with skill patterns
-        rf"experience[\s\w\-]*?{re.escape(skill)}[\s\w\-]*?(\d+)[\+\-\s]*(?:years?|yrs?)"
+        rf"(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:experience\s+in\s+|with\s+)?{re.escape(skill)}",
+        rf"{re.escape(skill)}[\s\-]*?(\d+)[\+\-\s]*(?:years?|yrs?)"
     ]
 
-    text_lower = text.lower()
-    skill_lower = skill.lower()
-
-    # Also check for skill variations (e.g., "angular" matches "angularjs")
-    skill_variations = [skill_lower]
-    if 'js' in skill_lower:
-        skill_variations.append(skill_lower.replace('js', ''))
-    if skill_lower.endswith('.js'):
-        skill_variations.append(skill_lower.replace('.js', ''))
-    
     max_years = 0
-    for skill_var in skill_variations:
-        for pattern in patterns:
-            pattern = pattern.replace(re.escape(skill), re.escape(skill_var))
-            matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-            for match in matches:
-                try:
-                    years = int(match.group(1))
-                    if 0 <= years <= 50:  
-                        max_years = max(max_years, years)
-                except (ValueError, IndexError):
-                    continue
-
+    for pattern in patterns:
+        matches = re.findall(pattern, text)
+        for match in matches:
+            try:
+                years = int(match)
+                if 0 <= years <= 50:
+                    max_years = max(max_years, years)
+            except:
+                continue
     return max_years
 
-def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]) -> Tuple[float, Dict[str, Dict]]:
+
+def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]) -> Tuple[float, Dict[str, Dict[str, float]]]:
     jd_requirements = {}
     for skill in skills:
         years = extract_experience_years(jd_text, skill)
@@ -634,7 +623,10 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
         candidate_experience[skill] = years
 
     if not jd_requirements:
-        return 85.0, {"jd_requirements": jd_requirements, "candidate_experience": candidate_experience}
+        return 85.0, {
+            "jd_requirements": jd_requirements,
+            "candidate_experience": candidate_experience
+        }
 
     total_score = 0
     skill_count = 0
@@ -643,25 +635,26 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
         candidate_years = candidate_experience.get(skill, 0)
         skill_count += 1
 
-        # New lenient scoring tiers
+        # Fallback for "senior", "7+", etc.
         if candidate_years == 0:
-            score = 30
+            years_in_resume = re.findall(r'(\d+)\s*(?:\+)?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:experience)?', resume_text.lower())
+            max_years = max([int(y) for y in years_in_resume if int(y) < 50], default=0)
+            score = 70 if max_years >= 7 or "senior" in resume_text.lower() else 40
         elif candidate_years >= required_years:
             score = 100
         elif candidate_years >= required_years * 0.8:
             score = 90
         elif candidate_years >= required_years * 0.5:
-            score = 70
+            score = 75
         elif candidate_years >= 1:
-            score = 55
+            score = 60
         else:
-            score = 30
+            score = 45
 
         total_score += score
 
     final_score = total_score / skill_count if skill_count else 70
-    final_score = min(max(final_score, 0), 100)
-    return final_score, {
+    return min(max(final_score, 0), 100), {
         "jd_requirements": jd_requirements,
         "candidate_experience": candidate_experience
     }
@@ -670,11 +663,14 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
 
 def calculate_skill_match_score(resume_skills: List[str], jd_skills: List[str]) -> Tuple[float, List[str], List[str]]:
     if not jd_skills:
-        return 75.0, resume_skills, []
+        return 85.0, resume_skills, []
 
     system_prompt = (
-        "You are a helpful assistant that compares resume skills against job description skills. "
-        "Only consider clearly matching skills. Give a generous match score if the candidate has many additional relevant skills."
+        "You are an expert recruiter comparing a candidate's resume skills with a job description. "
+        "Give credit for synonyms, closely related skills, and real-world equivalents. "
+        "Favor candidates with significant experience even if not all keywords match exactly. "
+        "Be generous with match_score if the candidate shows strong related experience or tools. "
+        "Respond in JSON format only."
     )
 
     user_prompt = f"""
@@ -704,6 +700,11 @@ Respond in strict JSON format:
 
         content = response.choices[0].message.content
         result = json.loads(content)
+
+        # Apply bonus if resume shows seniority
+        if result.get("match_score", 0) < 65 and any(s.lower().startswith("senior") or "7+" in s or "8+" in s for s in resume_skills):
+            result["match_score"] = min(result["match_score"] + 15, 100)
+
         return (
             float(result.get("match_score", 0)),
             result.get("matching_skills", []),
@@ -712,14 +713,13 @@ Respond in strict JSON format:
     except Exception as e:
         print("Error parsing response or calling OpenAI:", e)
         return 0.0, [], jd_skills
-
     
 
 
 def calculate_final_score(skill_score: float, experience_score: float, resume_text: str, jd_text: str) -> int:
-    skill_weight = 0.5
-    experience_weight = 0.3
-    relevance_weight = 0.2  # Slightly increased to benefit good semantic matches
+    skill_weight = 0.4
+    experience_weight = 0.25
+    relevance_weight = 0.35
 
     try:
         resume_embedding = get_embedding(resume_text)
@@ -727,7 +727,7 @@ def calculate_final_score(skill_score: float, experience_score: float, resume_te
         relevance_score = cosine_similarity(resume_embedding, jd_embedding) * 100
         relevance_score = min(relevance_score, 95)
     except Exception:
-        relevance_score = 70.0  # Slightly higher fallback
+        relevance_score = 75.0
 
     final_score = (
         skill_score * skill_weight +
@@ -735,13 +735,19 @@ def calculate_final_score(skill_score: float, experience_score: float, resume_te
         relevance_score * relevance_weight
     )
 
-    # Relaxed penalt
+    # Relax penalties and reward high semantic match
     if skill_score < 30 and experience_score < 50:
-        final_score *= 0.85
-    elif skill_score > 80 and experience_score > 70:
-        final_score = min(final_score * 1.05, 100)
+        final_score *= 0.92
+    elif skill_score > 80 and experience_score > 70 and relevance_score > 80:
+        final_score = min(final_score * 1.1, 100)
+    elif relevance_score > 85 and ("7+" in resume_text or "senior" in resume_text.lower()):
+        final_score = max(final_score, 78)
+
+    if "senior" in resume_text.lower() or "7+" in resume_text or "8+" in resume_text:
+        final_score += 5
 
     return min(max(int(round(final_score)), 0), 100)
+
 
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
