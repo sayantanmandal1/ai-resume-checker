@@ -6,6 +6,7 @@ import json
 import numpy as np
 import smtplib
 import secrets
+from openai import OpenAI
 import string
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -394,7 +395,7 @@ def create_firebase_user(email: str, password: str, name: str, username: str) ->
         return None
 
 
-    
+client = OpenAI()  
 
 def send_interview_email(candidate_email: str, candidate_name: str, username: str, password: str, skills: list) -> bool:
     """Send interview invitation email to candidate"""
@@ -667,7 +668,7 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
 
 
 
-def calculate_skill_match_scorez(resume_skills: List[str], jd_skills: List[str]) -> Tuple[float, List[str], List[str]]:
+def calculate_skill_match_score(resume_skills: List[str], jd_skills: List[str]) -> Tuple[float, List[str], List[str]]:
     if not jd_skills:
         return 75.0, resume_skills, []
 
@@ -691,17 +692,17 @@ Respond in strict JSON format:
 }}
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.3
-    )
-
-    content = response['choices'][0]['message']['content']
     try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3
+        )
+
+        content = response.choices[0].message.content
         result = json.loads(content)
         return (
             float(result.get("match_score", 0)),
@@ -709,8 +710,7 @@ Respond in strict JSON format:
             result.get("missing_skills", [])
         )
     except Exception as e:
-        print("Error parsing response:", e)
-        print("Raw LLM response:", content)
+        print("Error parsing response or calling OpenAI:", e)
         return 0.0, [], jd_skills
 
     

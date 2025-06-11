@@ -49,7 +49,7 @@ const AppContent = () => {
         formData.append('resume_pdfs', file);
       });
 
-      const response = await fetch('https://ai-resume-checker-1-tsrs.onrender.com/evaluate-resumes/', {
+      const response = await fetch('http://127.0.0.1:8000/evaluate-resumes/', {
         method: 'POST',
         body: formData,
       });
