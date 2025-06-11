@@ -537,32 +537,90 @@ Text to analyze:
         logger.error(f"Error extracting skills with GPT: {e}")
         return []
 
-def extract_experience_years(text: str, skill: str) -> int:
-    """Extract years of experience for a specific skill"""
+
+def extract_jd_requirements(jd_text: str) -> Dict[str, Dict]:
+    """Extract skill requirements from job description with context"""
+    requirements = {}
+    
+    # Enhanced patterns for experience requirements
     patterns = [
-        rf"(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+)?{re.escape(skill)}",
-        rf"{re.escape(skill)}[\s\w]*?(\d+)[\+\-\s]*(?:years?|yrs?)",
-        rf"(\d+)[\+\-\s]*(?:years?|yrs?)[\s\w]*?{re.escape(skill)}",
-        rf"{re.escape(skill)}[\s\-:]*(\d+)[\+\-\s]*(?:years?|yrs?)"
+        rf"(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+)([a-zA-Z\.\-\s]+)",
+        rf"at\s+least\s+(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+)([a-zA-Z\.\-\s]+)",
+        rf"minimum\s+(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+)([a-zA-Z\.\-\s]+)",
+        rf"([a-zA-Z\.\-\s]+)[\s\-:]+(\d+)[\+\-\s]*(?:years?|yrs?)",
+        rf"experience[\s\w\-]*?([a-zA-Z\.\-\s]+)[\s\-:]*(\d+)[\+\-\s]*(?:years?|yrs?)"
+    ]
+    
+    for pattern in patterns:
+        matches = re.finditer(pattern, jd_text, re.IGNORECASE)
+        for match in matches:
+            try:
+                if pattern.startswith(r"([a-zA-Z"):  # Skill comes first
+                    skill = match.group(1).strip()
+                    years = int(match.group(2))
+                else:  # Years come first
+                    years = int(match.group(1))
+                    skill = match.group(2).strip()
+                
+                if 0 < years <= 20 and len(skill) > 1:
+                    skill_clean = re.sub(r'[^\w\s\.\-]', '', skill).strip()
+                    if skill_clean:
+                        # Check if it's a minimum requirement
+                        context_start = max(0, match.start() - 50)
+                        context = jd_text[context_start:match.end() + 20].lower()
+                        is_minimum = any(word in context for word in ['at least', 'minimum', 'min', '+'])
+                        
+                        requirements[skill_clean.lower()] = {
+                            'years': years,
+                            'is_minimum': is_minimum,
+                            'context': context.strip()
+                        }
+            except (ValueError, IndexError):
+                continue
+    
+    return requirements
+
+def extract_experience_years(text: str, skill: str) -> int:
+    """Enhanced experience extraction with better pattern matching"""
+    patterns = [
+        # Direct patterns: "5 years experience in React"
+        rf"(\d+)[\+\-\s]*(?:years?|yrs?)\s+(?:of\s+)?(?:experience\s+)?(?:in\s+|with\s+|using\s+|of\s+)?{re.escape(skill)}",
+        # Reverse patterns: "React 5 years"
+        rf"{re.escape(skill)}[\s\w\-:]*?(\d+)[\+\-\s]*(?:years?|yrs?)",
+        # Years before skill: "5 years React"
+        rf"(\d+)[\+\-\s]*(?:years?|yrs?)[\s\w\-]*?(?:of\s+|in\s+|with\s+|using\s+)?{re.escape(skill)}",
+        # Project duration patterns: "React project - 2 years"
+        rf"{re.escape(skill)}[\s\w\-]*?project[\s\w\-]*?(\d+)[\+\-\s]*(?:years?|yrs?)",
+        # Experience with skill patterns
+        rf"experience[\s\w\-]*?{re.escape(skill)}[\s\w\-]*?(\d+)[\+\-\s]*(?:years?|yrs?)"
     ]
 
     text_lower = text.lower()
-    skill.lower()
+    skill_lower = skill.lower()
 
-    for pattern in patterns:
-        matches = re.finditer(pattern, text_lower, re.IGNORECASE)
-        for match in matches:
-            try:
-                years = int(match.group(1))
-                if 0 <= years <= 50:  
-                    return years
-            except (ValueError, IndexError):
-                continue
+    # Also check for skill variations (e.g., "angular" matches "angularjs")
+    skill_variations = [skill_lower]
+    if 'js' in skill_lower:
+        skill_variations.append(skill_lower.replace('js', ''))
+    if skill_lower.endswith('.js'):
+        skill_variations.append(skill_lower.replace('.js', ''))
+    
+    max_years = 0
+    for skill_var in skill_variations:
+        for pattern in patterns:
+            pattern = pattern.replace(re.escape(skill), re.escape(skill_var))
+            matches = re.finditer(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                try:
+                    years = int(match.group(1))
+                    if 0 <= years <= 50:  
+                        max_years = max(max_years, years)
+                except (ValueError, IndexError):
+                    continue
 
-    return 0
+    return max_years
 
 def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]) -> Tuple[float, Dict[str, Dict]]:
-    """Calculate experience score based on skill-experience matching"""
     jd_requirements = {}
     for skill in skills:
         years = extract_experience_years(jd_text, skill)
@@ -570,7 +628,7 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
             jd_requirements[skill] = years
 
     candidate_experience = {}
-    for skill in skills:
+    for skill in jd_requirements:
         years = extract_experience_years(resume_text, skill)
         candidate_experience[skill] = years
 
@@ -584,75 +642,107 @@ def calculate_experience_score(resume_text: str, jd_text: str, skills: List[str]
         candidate_years = candidate_experience.get(skill, 0)
         skill_count += 1
 
+        # New lenient scoring tiers
         if candidate_years == 0:
-            score = 20
-        elif candidate_years >= required_years * 0.8 and candidate_years <= required_years * 1.5:
+            score = 30
+        elif candidate_years >= required_years:
             score = 100
-        elif candidate_years >= required_years * 0.6 and candidate_years < required_years * 0.8:
-            score = 75
-        elif candidate_years >= required_years * 1.5 and candidate_years <= required_years * 2:
-            score = 85
-        elif candidate_years < required_years * 0.6:
-            score = 40
+        elif candidate_years >= required_years * 0.8:
+            score = 90
+        elif candidate_years >= required_years * 0.5:
+            score = 70
+        elif candidate_years >= 1:
+            score = 55
         else:
-            score = 60
+            score = 30
 
         total_score += score
 
-    other_skills = [s for s in skills if s not in jd_requirements and candidate_experience.get(s, 0) > 0]
-    bonus = min(len(other_skills) * 5, 20)
-
-    final_score = (total_score / skill_count) + bonus if skill_count > 0 else 70
+    final_score = total_score / skill_count if skill_count else 70
     final_score = min(max(final_score, 0), 100)
+    return final_score, {
+        "jd_requirements": jd_requirements,
+        "candidate_experience": candidate_experience
+    }
 
-    return final_score, {"jd_requirements": jd_requirements, "candidate_experience": candidate_experience}
 
-def calculate_skill_match_score(resume_skills: List[str], jd_skills: List[str]) -> Tuple[float, List[str], List[str]]:
-    """Calculate skill matching score using vector similarity and exact matching"""
+
+def calculate_skill_match_scorez(resume_skills: List[str], jd_skills: List[str]) -> Tuple[float, List[str], List[str]]:
     if not jd_skills:
-        return 70.0, resume_skills, []
+        return 75.0, resume_skills, []
 
-    resume_normalized = [normalize_skill(skill) for skill in resume_skills]
-    jd_normalized = [normalize_skill(skill) for skill in jd_skills]
+    system_prompt = (
+        "You are a helpful assistant that compares resume skills against job description skills. "
+        "Only consider clearly matching skills. Give a generous match score if the candidate has many additional relevant skills."
+    )
 
-    resume_normalized = [s for s in resume_normalized if s]
-    jd_normalized = [s for s in jd_normalized if s]
+    user_prompt = f"""
+Job Description Skills:
+{', '.join(jd_skills)}
 
-    matching_skills = []
-    missing_skills = []
+Candidate Resume Skills:
+{', '.join(resume_skills)}
 
-    for jd_skill in jd_normalized:
-        found = False
-        for resume_skill in resume_normalized:
-            if jd_skill.lower() == resume_skill.lower():
-                matching_skills.append(jd_skill)
-                found = True
-                break
+Respond in strict JSON format:
+{{
+  "match_score": float (0 to 100),
+  "matching_skills": [matched_skill1, matched_skill2, ...],
+  "missing_skills": [missing_skill1, missing_skill2, ...]
+}}
+"""
 
-        if not found:
-            jd_words = set(jd_skill.lower().split())
-            for resume_skill in resume_normalized:
-                resume_words = set(resume_skill.lower().split())
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=0.3
+    )
 
-                if len(jd_words.intersection(resume_words)) / len(jd_words) >= 0.5:
-                    matching_skills.append(jd_skill)
-                    found = True
-                    break
+    content = response['choices'][0]['message']['content']
+    try:
+        result = json.loads(content)
+        return (
+            float(result.get("match_score", 0)),
+            result.get("matching_skills", []),
+            result.get("missing_skills", [])
+        )
+    except Exception as e:
+        print("Error parsing response:", e)
+        print("Raw LLM response:", content)
+        return 0.0, [], jd_skills
 
-        if not found:
-            missing_skills.append(jd_skill)
+    
 
-    if len(jd_normalized) == 0:
-        skill_match_percentage = 85.0
-    else:
-        skill_match_percentage = (len(matching_skills) / len(jd_normalized)) * 100
 
-    additional_skills = len([s for s in resume_normalized if s not in jd_normalized])
-    bonus = min(additional_skills * 2, 15)
+def calculate_final_score(skill_score: float, experience_score: float, resume_text: str, jd_text: str) -> int:
+    skill_weight = 0.5
+    experience_weight = 0.3
+    relevance_weight = 0.2  # Slightly increased to benefit good semantic matches
 
-    final_score = min(skill_match_percentage + bonus, 100)
+    try:
+        resume_embedding = get_embedding(resume_text)
+        jd_embedding = get_embedding(jd_text)
+        relevance_score = cosine_similarity(resume_embedding, jd_embedding) * 100
+        relevance_score = min(relevance_score, 95)
+    except Exception:
+        relevance_score = 70.0  # Slightly higher fallback
 
-    return final_score, matching_skills, missing_skills
+    final_score = (
+        skill_score * skill_weight +
+        experience_score * experience_weight +
+        relevance_score * relevance_weight
+    )
+
+    # Relaxed penalt
+    if skill_score < 30 and experience_score < 50:
+        final_score *= 0.85
+    elif skill_score > 80 and experience_score > 70:
+        final_score = min(final_score * 1.05, 100)
+
+    return min(max(int(round(final_score)), 0), 100)
+
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     """Extract text from PDF with better error handling"""
@@ -748,26 +838,7 @@ def generate_resume_summary(resume_text: str, job_description: str) -> str:
         logger.error(f"Error generating summary: {e}")
         return "Professional with relevant technical experience."
 
-def calculate_final_score(skill_score: float, experience_score: float, resume_text: str, jd_text: str) -> int:
-    """Calculate final comprehensive score"""
-    skill_weight = 0.4
-    experience_weight = 0.4
-    relevance_weight = 0.2
 
-    try:
-        resume_embedding = get_embedding(resume_text)
-        jd_embedding = get_embedding(jd_text)
-        relevance_score = cosine_similarity(resume_embedding, jd_embedding) * 100
-    except Exception:
-        relevance_score = 60.0
-
-    final_score = (
-        skill_score * skill_weight +
-        experience_score * experience_weight +
-        relevance_score * relevance_weight
-    )
-
-    return min(max(int(round(final_score)), 0), 100)
 
 app = FastAPI(title="Advanced Resume Evaluator with Interview Integration", version="3.0.0")
 

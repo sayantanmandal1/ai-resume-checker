@@ -1,5 +1,4 @@
 SELECT id,
-       filename,
        candidate_email,
        candidate_name,
        suggested_job_role,
