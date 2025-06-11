@@ -605,7 +605,7 @@ def extract_experience_years(text: str, skill: str) -> int:
                 years = int(match)
                 if 0 <= years <= 50:
                     max_years = max(max_years, years)
-            except:
+            except Exception:
                 continue
     return max_years
 
